@@ -23,7 +23,10 @@ find "$APP" -name __pycache__ -type d -prune -exec rm -rf {} +
 chmod +x "$APP/deploy/respaldo.sh"
 chown -R qr:qr "$DATOS"; chmod 700 "$DATOS"
 
-if [ -n "$DOMINIO" ]; then URL="https://$DOMINIO"; else URL="http://$(curl -s --max-time 5 https://checkip.amazonaws.com || echo localhost)"; fi
+# QR_URL permite fijar la dirección a mano (por ejemplo una IP elástica que se asociará después).
+if [ -n "$DOMINIO" ]; then URL="https://$DOMINIO"
+elif [ -n "${QR_URL:-}" ]; then URL="$QR_URL"
+else URL="http://$(curl -s --max-time 5 https://checkip.amazonaws.com || echo localhost)"; fi
 if [ ! -f "$ENV" ]; then
   sed "s|^QR_BASE_URL=.*|QR_BASE_URL=$URL|; s|^QR_SECRET_KEY=.*|QR_SECRET_KEY=$(python3 -c 'import secrets;print(secrets.token_urlsafe(48))')|" \
     "$APP/deploy/qr-propio.env.ejemplo" > "$ENV"
