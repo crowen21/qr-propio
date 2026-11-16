@@ -390,3 +390,14 @@ def test_email_failure_is_reported(c):
     signup(c); new_qr(c, "https://ejemplo.cl")  # sin SMTP configurado
     qid = re.search(r"/qr/(\d+)/correo", c.get("/panel").text).group(1)
     assert "No pudimos enviar" in c.post(f"/qr/{qid}/correo", data={"csrf": csrf(c, "/panel")}).text
+
+
+def test_ses_mode_sends_raw_message(c, monkeypatch):
+    import boto3
+    sent = {}
+    class FakeSES:
+        def send_email(self, **kw): sent.update(kw)
+    monkeypatch.setattr(boto3, "client", lambda name, region_name=None: FakeSES() if (name, region_name) == ("sesv2", "us-east-1") else None)
+    monkeypatch.setattr(mailer.config, "SES_REGION", "us-east-1"); monkeypatch.setattr(mailer.config, "SMTP_FROM", "FacilQR <no-responder@facilqr.cl>")
+    assert mailer.send("ana@example.com", "Hola", "cuerpo", [("qr.png", b"\x89PNG", "png")]) is True
+    assert sent["Destination"] == {"ToAddresses": ["ana@example.com"]} and b"qr.png" in sent["Content"]["Raw"]["Data"]

@@ -21,6 +21,8 @@ SMTP_PORT = int(os.environ.get("QR_SMTP_PORT", "587"))
 SMTP_USER = os.environ.get("QR_SMTP_USER", "")
 SMTP_PASS = os.environ.get("QR_SMTP_PASS", "")
 SMTP_FROM = os.environ.get("QR_SMTP_FROM", "")
+# Alternativa sin claves: Amazon SES con el rol de la instancia. Si está definida, tiene prioridad sobre SMTP.
+SES_REGION = os.environ.get("QR_SES_REGION", "")
 
 # Ingreso con Google / Microsoft. Los botones aparecen solo si están el ID y el secreto.
 GOOGLE_CLIENT_ID = os.environ.get("QR_GOOGLE_CLIENT_ID", "")
