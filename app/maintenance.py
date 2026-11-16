@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from . import config, db
+from . import config, db, mailer
 from .urlcheck import check_url
 
 log = logging.getLogger("qr.mantenimiento")
@@ -60,12 +60,29 @@ def recheck() -> tuple[int, int]:
     return len(rows), flagged
 
 
+def remind_expiring() -> int:
+    """Avisa por correo, una vez, a quien tiene Pro por vencer en los próximos 3 días."""
+    t = int(time.time())
+    with db.connect() as c:
+        users = c.execute("SELECT * FROM users WHERE plan='pro' AND plan_until BETWEEN ? AND ? "
+                          "AND reminded_at IS NULL", (t, t + 3 * 86400)).fetchall()
+        for u in users:
+            fecha = time.strftime("%d-%m-%Y", time.localtime(u["plan_until"]))
+            mailer.send(u["email"], f"Tu plan Pro de {config.SITE_NAME} vence el {fecha}",
+                        f"Hola {u['name']}:\n\nTu plan Pro vence el {fecha}. Tus códigos van a seguir funcionando "
+                        f"igual, pero dejarás de poder editarlos y cambiar su diseño.\n\n"
+                        f"Para renovarlo: {config.BASE_URL}/planes")
+            c.execute("UPDATE users SET reminded_at=? WHERE id=?", (t, u["id"]))
+    return len(users)
+
+
 def main():
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     db.init()
     log.info("Dominios maliciosos cargados: %d", update_blocklist())
     total, flagged = recheck()
     log.info("Enlaces revisados: %d, bloqueados: %d", total, flagged)
+    remind_expiring()
     with db.connect() as c:
         c.execute("DELETE FROM tokens WHERE expires_at < ?", (int(time.time()),))
         # cuentas que nunca confirmaron su correo en 7 días

@@ -26,13 +26,21 @@
   <input id="f-{{ f.key }}" name="{{ f.key }}" type="text" value="{{ values[f.key] }}" maxlength="{{ f.max }}" placeholder="{{ f.hint }}" {{ 'required' if f.required }}>
   {% endif %}
   {% endfor %}
-  {% if q and user.plan == 'pro' %}
+  {% if diseno %}
+  <fieldset class="diseno"><legend>Diseño</legend>
+  <div class="colores">
+    <div><label for="fg">Color del código</label><input id="fg" name="fg" type="color" value="{{ values.fg }}"></div>
+    <div><label for="bg">Color de fondo</label><input id="bg" name="bg" type="color" value="{{ values.bg }}"></div>
+  </div>
+  <label for="frame">Texto del marco (opcional)</label>
+  <input id="frame" name="frame" type="text" maxlength="40" value="{{ values.frame or '' }}" placeholder="Escanea para ver la carta">
   <label for="logo">Logo al centro (PNG, JPG o WEBP, máx. 2 MB)</label>
   <input id="logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp">
-  {% if q.logo %}<label><input type="checkbox" name="remove_logo" value="1"> Quitar el logo actual</label>{% endif %}
-  <p class="suave chico">Después de cambiar el logo, descarga el QR de nuevo y pruébalo con tu teléfono antes de imprimir.</p>
-  {% elif q %}
-  <p class="suave chico">Logo al centro del QR: disponible en el plan de pago (próximamente).</p>
+  {% if q and q.logo %}<label><input type="checkbox" name="remove_logo" value="1"> Quitar el logo actual</label>{% endif %}
+  <p class="suave chico">El código debe ser más oscuro que el fondo. Después de cambiar el diseño, descarga el QR y pruébalo con tu teléfono antes de imprimir.</p>
+  </fieldset>
+  {% else %}
+  <p class="suave chico">Logo, colores y marco: disponibles al hacer el código permanente o con el plan Pro. <a href="/planes">Ver planes</a></p>
   {% endif %}
   <div class="fila"><button>{{ 'Guardar' if q else 'Crear QR' }}</button><a href="/panel">Cancelar</a></div>
 </form>

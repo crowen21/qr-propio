@@ -1,4 +1,4 @@
-import io, os, re, tempfile
+import io, os, re, tempfile, time
 os.environ["QR_DATA_DIR"] = tempfile.mkdtemp()
 os.environ["QR_BASE_URL"] = "http://testserver"
 
@@ -41,7 +41,13 @@ def new_qr(c, target, name="Menú"):
     return c.post("/qr/nuevo", data={"kind": "url", "name": name, "target": target, "csrf": csrf(c, "/qr/nuevo")})
 
 
+def set_pro(until=None):
+    with db.connect() as conn:
+        conn.execute("UPDATE users SET plan='pro', plan_until=?", (until,))
+
+
 def make(c, kind, **fields):
+    set_pro()  # estas pruebas son sobre los tipos de código, no sobre los límites del plan
     r = c.post("/qr/nuevo", data={"kind": kind, "name": "Prueba", "csrf": csrf(c, "/qr/nuevo"), **fields})
     assert r.status_code == 200, re.search(r'role="alert">([^<]+)', r.text).group(1)
     qid = re.findall(r"/qr/(\d+)/editar", r.text)[0]
@@ -92,7 +98,7 @@ def test_qr_lifecycle(c):
     qid = re.search(r"/qr/(\d+)/editar", c.get("/panel").text).group(1)
     png = c.get(f"/qr/{qid}/imagen.png").content
     assert decode(png) == f"http://testserver/r/{code}"
-    assert c.get(f"/qr/{qid}/imagen.svg").text.lstrip().startswith("<?xml")
+    assert c.get(f"/qr/{qid}/imagen.svg").text.lstrip().startswith("<svg")
     # cambiar destino: mismo código, otro destino
     c.post(f"/qr/{qid}/editar", data={"name": "Menú", "target": "https://otro.cl/x", "csrf": csrf(c, "/panel")})
     assert c.get(f"/r/{code}", follow_redirects=False).headers["location"] == "https://otro.cl/x"
@@ -304,7 +310,7 @@ def test_google_new_user(c, monkeypatch):
 def test_google_links_existing_account(c, monkeypatch):
     signup(c); new_qr(c, "https://ejemplo.cl"); c.cookies.clear()
     r, _ = oauth_login(c, "google", monkeypatch, email="ana@example.com")
-    assert r.headers["location"] == "/panel" and "1 de 50" in c.get("/panel").text
+    assert r.headers["location"] == "/panel" and "1 de 1 código" in c.get("/panel").text
 
 
 def test_google_takes_over_unverified_squatter(c, monkeypatch):
@@ -401,3 +407,166 @@ def test_ses_mode_sends_raw_message(c, monkeypatch):
     monkeypatch.setattr(mailer.config, "SES_REGION", "us-east-1"); monkeypatch.setattr(mailer.config, "SMTP_FROM", "FacilQR <no-responder@facilqr.cl>")
     assert mailer.send("ana@example.com", "Hola", "cuerpo", [("qr.png", b"\x89PNG", "png")]) is True
     assert sent["Destination"] == {"ToAddresses": ["ana@example.com"]} and b"qr.png" in sent["Content"]["Raw"]["Data"]
+
+
+# ---------- planes ----------
+def test_free_plan_limit_and_branding(c):
+    signup(c)
+    assert new_qr(c, "https://ejemplo.cl").status_code == 200
+    r = new_qr(c, "https://ejemplo.cl/otro", name="Segundo")
+    assert r.status_code == 400 and "Tu plan incluye 1 código" in r.text
+    qid = re.search(r"/qr/(\d+)/editar", c.get("/panel").text).group(1)
+    png = c.get(f"/qr/{qid}/imagen.png").content
+    assert decode(png) == f"http://testserver/r/{code_of(c)}"          # la marca no impide leerlo
+    assert "Crea tu QR gratis en testserver" in c.get(f"/qr/{qid}/imagen.svg").text  # vista previa con marca
+    assert c.get(f"/qr/{qid}/imagen.svg?descargar=1").status_code == 403
+    assert c.get(f"/qr/{qid}/imagen.pdf").status_code == 403
+    r = c.post(f"/qr/{qid}/editar", data={"name": "M", "target": "https://ejemplo.cl", "fg": "#ff0000", "csrf": csrf(c, "/panel")},
+               files={"logo": ("l.png", logo_png(), "image/png")})
+    assert r.status_code == 400 and "planes de pago" in r.text
+
+
+def test_pro_design_colors_frame_logo(c):
+    signup(c); set_pro()
+    r = c.post("/qr/nuevo", data={"kind": "url", "name": "Mesa", "target": "https://ejemplo.cl/carta", "fg": "#1b1464",
+                                  "bg": "#fff7e6", "frame": "Escanea para ver la carta", "csrf": csrf(c, "/qr/nuevo")})
+    assert r.status_code == 200
+    qid = re.search(r"/qr/(\d+)/editar", r.text).group(1)
+    data = {"name": "Mesa", "target": "https://ejemplo.cl/carta", "fg": "#1b1464", "bg": "#fff7e6",
+            "frame": "Escanea para ver la carta", "csrf": csrf(c, "/panel")}
+    assert c.post(f"/qr/{qid}/editar", data=data, files={"logo": ("l.png", logo_png("orange"), "image/png")}).status_code == 200
+    png = c.get(f"/qr/{qid}/imagen.png").content
+    assert decode(png) == f"http://testserver/r/{code_of(c)}"
+    svg = c.get(f"/qr/{qid}/imagen.svg?descargar=1").text
+    assert "Escanea para ver la carta" in svg and "Crea tu QR" not in svg and "#1b1464" in svg
+    assert c.get(f"/qr/{qid}/imagen.pdf?descargar=1").content[:4] == b"%PDF"
+    r = c.post(f"/qr/{qid}/editar", data={**data, "fg": "#eeeeee", "bg": "#ffffff"})
+    assert r.status_code == 400 and "oscuro" in r.text
+    r = c.post(f"/qr/{qid}/editar", data={**data, "fg": "#888888", "bg": "#999999"})
+    assert r.status_code == 400
+
+
+def test_expired_pro_keeps_codes_working(c):
+    signup(c); set_pro()
+    for i in range(3):
+        new_qr(c, f"https://ejemplo.cl/{i}", name=f"Q{i}")
+    set_pro(until=int(time.time()) - 10)
+    with db.connect() as conn:
+        rows = conn.execute("SELECT id, code FROM qrs ORDER BY id").fetchall()
+    for r in rows:
+        assert c.get(f"/r/{r['code']}", follow_redirects=False).status_code == 302
+    page = c.get("/panel").text
+    assert f"/qr/{rows[0]['id']}/editar" in page and f"/qr/{rows[2]['id']}/editar" not in page
+    assert c.post(f"/qr/{rows[2]['id']}/editar", data={"name": "x", "target": "https://ejemplo.cl", "csrf": csrf(c, "/panel")}).status_code == 403
+    assert "Crea tu QR gratis" in c.get(f"/qr/{rows[2]['id']}/imagen.svg").text
+    assert new_qr(c, "https://ejemplo.cl/nuevo").status_code == 400
+
+
+# ---------- pagos ----------
+from app import flow as flowmod
+
+
+class FakeFlow:
+    def __init__(self): self.payments = {}; self.n = 0
+    def create(self, order, subject, amount, email):
+        self.n += 1; tok = f"tok{self.n}"
+        self.payments[tok] = {"commerceOrder": order, "amount": amount, "currency": "CLP", "status": 1}
+        return f"https://sandbox.flow.cl/app/web/pay.php?token={tok}", tok
+    def status(self, token):
+        if token not in self.payments: raise flowmod.FlowError("no existe")
+        return dict(self.payments[token])
+
+
+@pytest.fixture
+def fake_flow(monkeypatch):
+    f = FakeFlow()
+    monkeypatch.setattr(flowmod, "create_payment", f.create)
+    monkeypatch.setattr(flowmod, "payment_status", f.status)
+    monkeypatch.setattr(flowmod.config, "FLOW_API_KEY", "k"); monkeypatch.setattr(flowmod.config, "FLOW_SECRET", "s")
+    return f
+
+
+def buy(c, product, qr_id=0):
+    return c.post("/comprar", data={"product": product, "qr_id": qr_id, "csrf": csrf(c, "/panel")}, follow_redirects=False)
+
+
+def test_buy_permanent_qr(c, fake_flow):
+    signup(c); new_qr(c, "https://ejemplo.cl")
+    qid = re.search(r"/qr/(\d+)/editar", c.get("/panel").text).group(1)
+    assert "Hacer permanente con logo" in c.get("/panel").text
+    r = buy(c, "qr", qid)
+    assert r.status_code == 303 and r.headers["location"].startswith("https://sandbox.flow.cl/")
+    tok = r.headers["location"].split("token=")[1]
+    assert TestClient(app).post("/pago/confirmacion", data={"token": tok}).text == "OK"
+    fake_flow.payments[tok]["status"] = 2
+    assert TestClient(app).post("/pago/confirmacion", data={"token": tok}).text == "OK"
+    assert "Pago recibido" in mailer.outbox[-1][1]
+    page = c.get("/panel").text
+    assert "Permanente" in page and f"/qr/{qid}/imagen.pdf" in page
+    assert "Crea tu QR" not in c.get(f"/qr/{qid}/imagen.svg").text
+    assert new_qr(c, "https://ejemplo.cl/2", name="Otro gratis").status_code == 200  # el pagado no ocupa el cupo gratis
+    n = len(mailer.outbox)
+    assert "Pago recibido" in TestClient(app).post("/pago/retorno", data={"token": tok}).text
+    assert len(mailer.outbox) == n  # no se aplica ni se avisa dos veces
+
+
+def test_buy_pro_extends_and_stacks(c, fake_flow):
+    signup(c)
+    for product, days in (("pro_mes", 31), ("pro_anual", 366)):
+        tok = buy(c, product).headers["location"].split("token=")[1]
+        fake_flow.payments[tok]["status"] = 2
+        TestClient(app).get(f"/pago/retorno?token={tok}")
+        TestClient(app).post("/pago/confirmacion", data={"token": tok})
+    with db.connect() as conn:
+        u = conn.execute("SELECT * FROM users").fetchone()
+    assert u["plan"] == "pro" and abs(u["plan_until"] - (time.time() + 397 * 86400)) < 60
+    assert "Plan Pro hasta el" in c.get("/panel").text
+
+
+def test_payment_rejections_and_tampering(c, fake_flow):
+    signup(c)
+    tok = buy(c, "pro_mes").headers["location"].split("token=")[1]
+    fake_flow.payments[tok].update(status=2, amount=10)          # monto adulterado
+    assert "revisando" in TestClient(app).post("/pago/retorno", data={"token": tok}).text
+    tok2 = buy(c, "pro_mes").headers["location"].split("token=")[1]
+    fake_flow.payments[tok2]["status"] = 3
+    assert "no se completó" in TestClient(app).post("/pago/retorno", data={"token": tok2}).text
+    assert "confirmando" in TestClient(app).post("/pago/retorno", data={"token": "inventado"}).text
+    with db.connect() as conn:
+        assert conn.execute("SELECT plan FROM users").fetchone()[0] == "free"
+        assert [r[0] for r in conn.execute("SELECT status FROM payments ORDER BY id")] == ["pending", "rejected"]
+    other = signup(TestClient(app), email="beto@example.com")
+    new_qr(other, "https://ejemplo.cl")
+    qid = re.search(r"/qr/(\d+)/editar", other.get("/panel").text).group(1)
+    assert buy(c, "qr", qid).status_code == 404                  # no puede pagar el QR de otro
+    assert buy(c, "otra_cosa").status_code == 400
+
+
+def test_payments_disabled_without_keys(c):
+    signup(c); new_qr(c, "https://ejemplo.cl")
+    assert "Hacer permanente" not in c.get("/panel").text
+    assert "Pagos disponibles muy pronto" in c.get("/planes").text
+    assert buy(c, "pro_mes").status_code == 503
+
+
+def test_planes_public_and_csp_allows_flow(c):
+    r = c.get("/planes")
+    assert r.status_code == 200 and "$3.990" in r.text and "$34.990" in r.text and "$9.990" in r.text
+    assert "https://www.flow.cl" in r.headers["content-security-policy"]
+
+
+def test_flow_signature():
+    import hashlib, hmac as h
+    from app import config as cfg
+    old = cfg.FLOW_SECRET; cfg.FLOW_SECRET = "secreto"
+    try:
+        expected = h.new(b"secreto", b"amount5000apiKeyABCcommerceOrderX1", hashlib.sha256).hexdigest()
+        assert flowmod.sign({"commerceOrder": "X1", "apiKey": "ABC", "amount": 5000}) == expected
+    finally:
+        cfg.FLOW_SECRET = old
+
+
+def test_pro_expiry_reminder_once(c):
+    signup(c); set_pro(until=int(time.time()) + 2 * 86400)
+    assert maintenance.remind_expiring() == 1 and "vence" in mailer.outbox[-1][1]
+    assert maintenance.remind_expiring() == 0

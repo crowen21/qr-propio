@@ -3,7 +3,7 @@
 <section class="heroe">
   <h1>Códigos QR que no caducan.</h1>
   <p class="suave">Crea tu cuenta, genera tus códigos y cámbiales el destino cuando quieras sin volver a imprimirlos. Cada enlace se revisa para que tu QR nunca lleve a un sitio peligroso.</p>
-  <div class="fila"><a class="boton" href="/registro">Crear cuenta gratis</a><a href="/ingresar">Ya tengo cuenta</a></div>
+  <div class="fila"><a class="boton" href="/registro">Crear cuenta gratis</a><a href="/planes">Ver planes</a></div>
   {% if proveedores() %}<div class="fila">{% for k, nombre in proveedores() %}<a class="boton secundario" href="/entrar/{{ k }}">Continuar con {{ nombre }}</a>{% endfor %}</div>{% endif %}
 </section>
 <div class="tres">

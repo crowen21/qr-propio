@@ -43,6 +43,18 @@ CREATE TABLE IF NOT EXISTS identities (
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     PRIMARY KEY (provider, subject)
 );
+CREATE TABLE IF NOT EXISTS payments (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    qr_id INTEGER,
+    product TEXT NOT NULL,                  -- 'qr' | 'pro_mes' | 'pro_anual'
+    amount INTEGER NOT NULL,
+    commerce_order TEXT NOT NULL UNIQUE,
+    flow_token TEXT,
+    status TEXT NOT NULL DEFAULT 'pending', -- pending | paid | rejected | cancelled
+    created_at INTEGER NOT NULL,
+    paid_at INTEGER
+);
 CREATE TABLE IF NOT EXISTS blocklist (host TEXT PRIMARY KEY);
 """
 
@@ -64,6 +76,12 @@ def init():
         c.execute("PRAGMA journal_mode = WAL")
         c.executescript(SCHEMA)
         cols = {r["name"] for r in c.execute("PRAGMA table_info(qrs)")}
-        for col, ddl in (("logo", "BLOB"), ("kind", "TEXT NOT NULL DEFAULT 'url'"), ("data", "TEXT")):
+        for col, ddl in (("logo", "BLOB"), ("kind", "TEXT NOT NULL DEFAULT 'url'"), ("data", "TEXT"),
+                         ("paid", "INTEGER NOT NULL DEFAULT 0"), ("fg", "TEXT"), ("bg", "TEXT"),
+                         ("frame", "TEXT")):
             if col not in cols:  # bases creadas con una versión anterior
                 c.execute(f"ALTER TABLE qrs ADD COLUMN {col} {ddl}")
+        ucols = {r["name"] for r in c.execute("PRAGMA table_info(users)")}
+        for col, ddl in (("plan_until", "INTEGER"), ("reminded_at", "INTEGER")):
+            if col not in ucols:
+                c.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")

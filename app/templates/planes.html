@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block titulo %}Planes · {{ site }}{% endblock %}
+{% block cuerpo %}
+<section class="planes-cabeza">
+  <h1>Tus códigos nunca se apagan.</h1>
+  <p class="suave">En otros servicios, cuando termina la prueba o dejas de pagar, tus QR impresos dejan de funcionar. Aquí siguen funcionando siempre. Pagas solo por diseño, más códigos y estadísticas.</p>
+  {% if pro %}<p class="aviso ok">Tu cuenta tiene Pro{% if pro_hasta %} hasta el {{ pro_hasta }}{% endif %}.</p>{% endif %}
+</section>
+
+{% macro comprar(producto, texto, clase='') -%}
+  {% if user and pagos_activos() %}
+  <form method="post" action="/comprar"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="product" value="{{ producto }}"><button class="ancho-total {{ clase }}">{{ texto }}</button></form>
+  {% elif not user %}
+  <a class="boton ancho-total {{ clase }}" href="/registro">Crear cuenta</a>
+  {% else %}
+  <p class="suave chico">Pagos disponibles muy pronto.</p>
+  {% endif %}
+{%- endmacro %}
+
+<div class="planes">
+  <article class="plan">
+    <h2>Gratis</h2>
+    <p class="precio">$0</p>
+    <ul>
+      <li>1 código QR que nunca vence</li>
+      <li>Todos los tipos: WhatsApp, web, WiFi, carta…</li>
+      <li>Cambias el destino sin reimprimir</li>
+      <li>PNG con la marca «{{ site }}» abajo</li>
+    </ul>
+    {% if not user %}<a class="boton secundario ancho-total" href="/registro">Empezar gratis</a>{% endif %}
+  </article>
+
+  <article class="plan">
+    <h2>QR permanente</h2>
+    <p class="precio">{{ pesos(PRECIOS.qr) }} <span>una vez</span></p>
+    <ul>
+      <li>1 código con tu logo, colores y marco</li>
+      <li>Sin la marca de {{ site }}</li>
+      <li>PNG, SVG y PDF para imprenta</li>
+      <li>Sin suscripción, para siempre</li>
+    </ul>
+    {% if user %}<p class="suave chico">Se compra desde tu panel, en el código que quieras.</p>{% else %}<a class="boton secundario ancho-total" href="/registro">Crear cuenta</a>{% endif %}
+  </article>
+
+  <article class="plan destacado-plan">
+    <h2>Pro</h2>
+    <p class="precio">{{ pesos(PRECIOS.pro_mes) }} <span>al mes</span></p>
+    <ul>
+      <li>Hasta 100 códigos</li>
+      <li>Logo, colores y marco en todos</li>
+      <li>PNG, SVG y PDF para imprenta</li>
+      <li>Si dejas de pagar, tus códigos siguen funcionando</li>
+    </ul>
+    {{ comprar('pro_mes', 'Pagar 1 mes') }}
+  </article>
+
+  <article class="plan">
+    <h2>Pro anual</h2>
+    <p class="precio">{{ pesos(PRECIOS.pro_anual) }} <span>al año</span></p>
+    <ul>
+      <li>Todo lo del plan Pro</li>
+      <li>Equivale a {{ pesos((PRECIOS.pro_anual / 12)|round|int) }} al mes</li>
+      <li>Dos meses de regalo frente al mensual</li>
+    </ul>
+    {{ comprar('pro_anual', 'Pagar 1 año', 'secundario') }}
+  </article>
+</div>
+<p class="suave chico">Precios en pesos chilenos con IVA incluido. Pago seguro con Flow: tarjetas de crédito, débito y transferencia. Pro no se renueva solo: te avisamos por correo antes de que venza.</p>
+{% endblock %}

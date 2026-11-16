@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block titulo %}Pago · {{ site }}{% endblock %}
+{% block cuerpo %}
+<div class="carta estrecho">
+{% if pay and estado == 2 %}
+  <h1>Pago recibido</h1>
+  <p>{{ producto }} ya está activo en tu cuenta. Te enviamos el comprobante a tu correo.</p>
+{% elif pay and estado in (3, 4) %}
+  <h1>El pago no se completó</h1>
+  <p>{{ 'El medio de pago rechazó la operación.' if estado == 3 else 'Se canceló el pago.' }} No se hizo ningún cargo. Puedes intentarlo de nuevo cuando quieras.</p>
+{% elif estado == -1 %}
+  <h1>Estamos revisando tu pago</h1>
+  <p>El monto recibido no coincide con el esperado. Escríbenos y lo resolvemos.</p>
+{% else %}
+  <h1>Estamos confirmando tu pago</h1>
+  <p>Flow todavía no nos confirma el pago. Cuando llegue la confirmación se activa solo y te avisamos por correo.</p>
+{% endif %}
+<div class="fila"><a class="boton" href="/panel">Ir a mis códigos</a></div>
+</div>
+{% endblock %}

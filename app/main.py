@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import logging
 import hmac
 import io
 import json
@@ -10,16 +11,18 @@ from collections import defaultdict, deque
 
 import segno
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from PIL import Image
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import config, db, kinds, mailer, oauth
+from . import config, db, flow, kinds, mailer, oauth
+from . import render as qrdraw
 from .urlcheck import check_url
 
+log = logging.getLogger("qr.app")
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(
     SessionMiddleware, secret_key=config.SECRET_KEY, session_cookie="qr_sesion",
@@ -46,7 +49,8 @@ def _mosaico() -> dict:
 
 templates.env.globals.update(
     mosaico=_mosaico(),
-    KINDS=kinds.KINDS, STATIC=kinds.STATIC, proveedores=oauth.enabled,
+    KINDS=kinds.KINDS, STATIC=kinds.STATIC, proveedores=oauth.enabled, PRECIOS=config.PRICES,
+    pagos_activos=flow.enabled, pesos=lambda n: f"${n:,.0f}".replace(",", "."),
     resumen=lambda q: kinds.summary(q["kind"], qr_data(q)))
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -54,7 +58,7 @@ CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"  # sin caracteres que se confu
 MAX_LOGO_BYTES = 2 * 1024 * 1024
 Image.MAX_IMAGE_PIXELS = 20_000_000  # frena imágenes "bomba"
 CSP = ("default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'none'; "
-       "form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+       "form-action 'self' https://www.flow.cl https://sandbox.flow.cl; frame-ancestors 'none'; base-uri 'none'")
 
 
 @app.middleware("http")
@@ -402,11 +406,51 @@ def own_qr(c, user, qr_id: int):
     return q
 
 
+def is_pro(user) -> bool:
+    return user["plan"] == "pro" and (not user["plan_until"] or user["plan_until"] > now())
+
+
+def free_qr_id(c, user):
+    """El código gratuito de la cuenta: el más antiguo que no fue pagado."""
+    row = c.execute("SELECT id FROM qrs WHERE user_id=? AND paid=0 ORDER BY id LIMIT 1", (user["id"],)).fetchone()
+    return row["id"] if row else None
+
+
+def premium(user, q) -> bool:
+    return is_pro(user) or bool(q["paid"])
+
+
+def editable(c, user, q) -> bool:
+    return premium(user, q) or q["id"] == free_qr_id(c, user)
+
+
+def mark_text() -> str:
+    host = config.BASE_URL.split("://", 1)[-1]
+    return f"Crea tu QR gratis en {host}"
+
+
+def qr_image_bytes(user, q, fmt: str) -> bytes:
+    data = kinds.payload(q["kind"], qr_data(q), f"{config.BASE_URL}/r/{q['code']}")
+    if premium(user, q):
+        return qrdraw.render(fmt, data, logo=q["logo"], fg=q["fg"], bg=q["bg"], frame=q["frame"] or "")
+    return qrdraw.render(fmt, data, mark=mark_text())
+
+
+def fecha(ts) -> str:
+    return time.strftime("%d-%m-%Y", time.localtime(ts)) if ts else ""
+
+
 def panel(request: Request, user, status: int = 200, **ctx):
     with db.connect() as c:
         qrs = c.execute("SELECT * FROM qrs WHERE user_id=? ORDER BY id DESC", (user["id"],)).fetchall()
+        free_id = free_qr_id(c, user)
+    pro = is_pro(user)
     return render(request, "panel.html", status=status, user=user, qrs=qrs, sin_clave=user["pw_hash"] == NO_PASSWORD,
-                  max_qrs=config.MAX_QRS_FREE, **ctx)
+                  pro=pro, pro_hasta=fecha(user["plan_until"]) if pro else "",
+                  premium_ids={q["id"] for q in qrs if premium(user, q)},
+                  editable_ids={q["id"] for q in qrs if premium(user, q) or q["id"] == free_id},
+                  usados=sum(1 for q in qrs if not q["paid"]),
+                  max_qrs=config.PRO_QRS if pro else config.FREE_QRS, **ctx)
 
 
 @app.get("/panel")
@@ -437,7 +481,7 @@ def clean_logo(raw: bytes) -> bytes:
 def email_qr(user, q) -> bool:
     """Envía la imagen del código al correo de su dueño (nunca a otra dirección)."""
     url = f"{config.BASE_URL}/r/{q['code']}"
-    png = qr_bytes(kinds.payload(q["kind"], qr_data(q), url), "png", q["logo"])
+    png = qr_image_bytes(user, q, "png")
     detalle = ("Los datos van dentro del propio código." if q["kind"] in kinds.STATIC
                else f"Dirección corta: {url}\nPuedes cambiar lo que abre desde tu panel sin volver a imprimirlo.")
     return mailer.send(
@@ -449,8 +493,10 @@ def email_qr(user, q) -> bool:
 
 
 def qr_form(request: Request, user, kind: str, values: dict, q=None, status: int = 200, error=None):
+    diseno = premium(user, q) if q else is_pro(user)
+    values = {"fg": qrdraw.DEFAULT_FG, "bg": qrdraw.DEFAULT_BG, **{k: v for k, v in values.items() if v}}
     return render(request, "formulario.html", status=status, user=user, kind=kind,
-                  spec=kinds.KINDS[kind], values=values, q=q, error=error)
+                  spec=kinds.KINDS[kind], values=values, q=q, error=error, diseno=diseno)
 
 
 def qr_save(request: Request, qr_id: int | None, form: dict):
@@ -463,38 +509,58 @@ def qr_save(request: Request, qr_id: int | None, form: dict):
         kind = q["kind"] if q else str(form.get("kind", ""))
         if kind not in kinds.KINDS:
             raise HTTPException(400, "Tipo de código no válido.")
+        if q and not editable(c, user, q):
+            raise HTTPException(403, "Este código sigue funcionando, pero para editarlo necesitas el plan Pro "
+                                     "o hacerlo permanente desde tu panel.")
         name = " ".join(str(form.get("name", "")).split())[:80]
         logo = q["logo"] if q else None
+        diseno = premium(user, q) if q else is_pro(user)
+        fg = q["fg"] if q else None
+        bg = q["bg"] if q else None
+        frame = q["frame"] if q else None
         try:
             if not name:
                 raise ValueError("Ponle un nombre al código para reconocerlo después.")
-            if not q and user["plan"] == "free" and c.execute(
-                    "SELECT COUNT(*) FROM qrs WHERE user_id=?", (user["id"],)).fetchone()[0] >= config.MAX_QRS_FREE:
-                raise ValueError(f"Llegaste al máximo de {config.MAX_QRS_FREE} códigos del plan gratuito.")
+            if not q:
+                limit = config.PRO_QRS if is_pro(user) else config.FREE_QRS
+                usados = c.execute("SELECT COUNT(*) FROM qrs WHERE user_id=? AND paid=0", (user["id"],)).fetchone()[0]
+                if usados >= limit:
+                    raise ValueError(
+                        f"Tu plan incluye {limit} código{'s' if limit != 1 else ''} y ya lo{'s' if limit != 1 else ''} usaste. "
+                        "Puedes hacer permanente uno que ya tengas o pasarte a Pro desde la página de planes.")
             data, target = kinds.build(kind, form)
             if kind == "url":  # los demás tipos van a destinos fijos (wa.me, Instagram, Maps) o a páginas nuestras
                 ok, why = check_url(c, target)
                 if not ok:
                     raise ValueError(why)
             upload = form.get("logo")
-            if form.get("remove_logo"):
-                logo = None
-            elif upload is not None and getattr(upload, "filename", ""):
-                if user["plan"] != "pro":
-                    raise ValueError("El logo al centro del QR es una función del plan de pago.")
-                logo = clean_logo(upload.file.read(MAX_LOGO_BYTES + 1))
+            if upload is not None and getattr(upload, "filename", "") and not diseno:
+                raise ValueError("El logo, los colores y el marco son parte de los planes de pago.")
+            if diseno:
+                fg = str(form.get("fg", "") or qrdraw.DEFAULT_FG).lower()
+                bg = str(form.get("bg", "") or qrdraw.DEFAULT_BG).lower()
+                problema = qrdraw.check_colors(fg, bg)
+                if problema:
+                    raise ValueError(problema)
+                frame = " ".join(str(form.get("frame", "")).split())[:40] or None
+                if form.get("remove_logo"):
+                    logo = None
+                elif upload is not None and getattr(upload, "filename", ""):
+                    logo = clean_logo(upload.file.read(MAX_LOGO_BYTES + 1))
         except ValueError as e:
             values = {k: v for k, v in form.items() if isinstance(v, str)}
             return qr_form(request, user, kind, values, q=q, status=400, error=str(e))
         blob = json.dumps(data, ensure_ascii=False)
         if q:
-            c.execute("UPDATE qrs SET name=?, target=?, data=?, logo=?, status='ok', flag_reason=NULL, "
-                      "checked_at=? WHERE id=?", (name, target, blob, logo, now(), qr_id))
+            c.execute("UPDATE qrs SET name=?, target=?, data=?, logo=?, fg=?, bg=?, frame=?, status='ok', "
+                      "flag_reason=NULL, checked_at=? WHERE id=?",
+                      (name, target, blob, logo, fg, bg, frame, now(), qr_id))
         else:
             code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(7))
             new_id = c.execute(
-                "INSERT INTO qrs (user_id,code,name,kind,target,data,created_at,checked_at) "
-                "VALUES (?,?,?,?,?,?,?,?)", (user["id"], code, name, kind, target, blob, now(), now())).lastrowid
+                "INSERT INTO qrs (user_id,code,name,kind,target,data,logo,fg,bg,frame,created_at,checked_at) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                (user["id"], code, name, kind, target, blob, logo, fg, bg, frame, now(), now())).lastrowid
             created = c.execute("SELECT * FROM qrs WHERE id=?", (new_id,)).fetchone()
     if q:
         flash(request, "Cambios guardados.")
@@ -566,47 +632,138 @@ def qr_delete(request: Request, qr_id: int, csrf: str = Form("")):
     return redirect("/panel")
 
 
-def qr_bytes(url: str, fmt: str, logo: bytes | None = None, scale: int = 12) -> bytes:
-    """Imagen del QR. Con logo se usa la corrección de errores máxima (H) para que siga leyéndose."""
-    qr = segno.make(url, error="h" if logo else "m")
-    buf = io.BytesIO()
-    qr.save(buf, kind=fmt, scale=scale, border=4)
-    if not logo:
-        return buf.getvalue()
-    size = qr.symbol_size(scale=scale, border=4)[0]
-    lg = Image.open(io.BytesIO(logo)).convert("RGBA")
-    lg.thumbnail((int(size * 0.2), int(size * 0.2)))
-    w, h = lg.width + 2 * scale, lg.height + 2 * scale  # margen blanco de un módulo
-    x, y = (size - w) // 2, (size - h) // 2
-    if fmt == "png":
-        img = Image.open(buf).convert("RGBA")
-        box = Image.new("RGBA", (w, h), "white")
-        box.paste(lg, (scale, scale), lg)
-        img.paste(box, (x, y))
-        out = io.BytesIO()
-        img.save(out, "PNG")
-        return out.getvalue()
-    small = io.BytesIO()
-    lg.save(small, "PNG")
-    extra = (f'<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="#fff"/>'
-             f'<image x="{x + scale}" y="{y + scale}" width="{lg.width}" height="{lg.height}" '
-             f'href="data:image/png;base64,{base64.b64encode(small.getvalue()).decode()}"/>')
-    return buf.getvalue().decode().replace("</svg>", extra + "</svg>").encode()
+MEDIA = {"png": "image/png", "svg": "image/svg+xml", "pdf": "application/pdf"}
 
 
 @app.get("/qr/{qr_id}/imagen.{fmt}")
 def qr_image(request: Request, qr_id: int, fmt: str, descargar: int = 0):
     user = require_user(request)
-    if fmt not in ("svg", "png"):
+    if fmt not in MEDIA:
         raise HTTPException(404, "Formato no disponible.")
     with db.connect() as c:
         q = own_qr(c, user, qr_id)
-    data = qr_bytes(kinds.payload(q["kind"], qr_data(q), f"{config.BASE_URL}/r/{q['code']}"), fmt, q["logo"])
+    if (fmt == "pdf" or (fmt == "svg" and descargar)) and not premium(user, q):
+        raise HTTPException(403, "Los archivos SVG y PDF para imprenta son parte de los planes de pago.")
     headers = {"Cache-Control": "private, no-store"}
     if descargar:
         headers["Content-Disposition"] = f'attachment; filename="qr-{q["code"]}.{fmt}"'
-    return Response(data, media_type="image/svg+xml" if fmt == "svg" else "image/png",
-                    headers=headers)
+    return Response(qr_image_bytes(user, q, fmt), media_type=MEDIA[fmt], headers=headers)
+
+
+# ---------- planes y pagos ----------
+
+PRODUCTS = {"qr": "QR permanente", "pro_mes": "Plan Pro mensual", "pro_anual": "Plan Pro anual"}
+
+
+@app.get("/planes")
+def plans_page(request: Request):
+    u = current_user(request)
+    return render(request, "planes.html", user=u, pro=bool(u and is_pro(u)),
+                  pro_hasta=fecha(u["plan_until"]) if u and is_pro(u) else "")
+
+
+@app.post("/comprar")
+def buy(request: Request, product: str = Form(""), qr_id: int = Form(0), csrf: str = Form("")):
+    check_csrf(request, csrf)
+    user = require_user(request)
+    rate_limit(request, "compra", limit=20)
+    if not flow.enabled():
+        raise HTTPException(503, "Los pagos todavía no están habilitados. Vuelve a intentarlo pronto.")
+    if product not in PRODUCTS:
+        raise HTTPException(400, "Producto no válido.")
+    subject = f"FacilQR: {PRODUCTS[product]}"
+    with db.connect() as c:
+        if product == "qr":
+            q = own_qr(c, user, qr_id)
+            if q["paid"]:
+                flash(request, f"«{q['name']}» ya es permanente.")
+                return redirect("/panel")
+            subject += f" «{q['name'][:40]}»"
+        else:
+            qr_id = None
+            if user["plan"] == "pro" and not user["plan_until"]:
+                flash(request, "Tu cuenta ya tiene Pro sin vencimiento.")
+                return redirect("/panel")
+        order = f"FQ{user['id']}-{secrets.token_hex(5)}"
+        pay_id = c.execute(
+            "INSERT INTO payments (user_id,qr_id,product,amount,commerce_order,created_at) VALUES (?,?,?,?,?,?)",
+            (user["id"], qr_id, product, config.PRICES[product], order, now())).lastrowid
+    try:
+        url, token = flow.create_payment(order, subject, config.PRICES[product], user["email"])
+    except flow.FlowError:
+        with db.connect() as c:
+            c.execute("UPDATE payments SET status='cancelled' WHERE id=?", (pay_id,))
+        flash(request, "No pudimos conectar con el sistema de pago. Inténtalo de nuevo en unos minutos.", "error")
+        return redirect("/panel")
+    with db.connect() as c:
+        c.execute("UPDATE payments SET flow_token=? WHERE id=?", (token, pay_id))
+    return RedirectResponse(url, status_code=303)
+
+
+def apply_purchase(c, pay):
+    if pay["product"] == "qr":
+        c.execute("UPDATE qrs SET paid=1 WHERE id=? AND user_id=?", (pay["qr_id"], pay["user_id"]))
+        return
+    u = c.execute("SELECT * FROM users WHERE id=?", (pay["user_id"],)).fetchone()
+    if not u or (u["plan"] == "pro" and not u["plan_until"]):
+        return  # Pro sin vencimiento: nada que extender
+    base = max(now(), u["plan_until"] or 0)
+    c.execute("UPDATE users SET plan='pro', plan_until=?, reminded_at=NULL WHERE id=?",
+              (base + config.PRO_DAYS[pay["product"]] * 86400, u["id"]))
+
+
+def process_payment(token: str):
+    """Consulta a Flow el estado real del pago y lo aplica una sola vez. Devuelve (pago, estado)."""
+    st = flow.payment_status(token)
+    status = int(st.get("status") or 0)
+    newly_paid = None
+    with db.connect() as c:
+        pay = c.execute("SELECT * FROM payments WHERE commerce_order=? AND flow_token=?",
+                        (str(st.get("commerceOrder", "")), token)).fetchone()
+        if not pay:
+            return None, status
+        amount_ok = round(float(st.get("amount") or 0)) == pay["amount"] and st.get("currency", "CLP") == "CLP"
+        if status == flow.PAID and amount_ok:
+            if c.execute("UPDATE payments SET status='paid', paid_at=? WHERE id=? AND status!='paid'",
+                         (now(), pay["id"])).rowcount:
+                apply_purchase(c, pay)
+                newly_paid = c.execute("SELECT * FROM users WHERE id=?", (pay["user_id"],)).fetchone()
+        elif status in (flow.REJECTED, flow.CANCELLED):
+            c.execute("UPDATE payments SET status=? WHERE id=? AND status='pending'",
+                      ("rejected" if status == flow.REJECTED else "cancelled", pay["id"]))
+        elif status == flow.PAID:
+            log.error("Pago %s con monto o moneda distintos a lo esperado: %s", pay["commerce_order"], st)
+            status = -1
+    if newly_paid:
+        mailer.send(newly_paid["email"], f"Pago recibido en {config.SITE_NAME}",
+                    f"Hola {newly_paid['name']}:\n\nRecibimos tu pago de {PRODUCTS[pay['product']]} "
+                    f"por ${pay['amount']:,} (orden {pay['commerce_order']}).\n\n"
+                    f"Ya está activo en tu cuenta: {config.BASE_URL}/panel\n\nGracias por confiar en nosotros.".replace(",", "."))
+    return pay, status
+
+
+@app.post("/pago/confirmacion")
+async def payment_confirmation(request: Request):
+    token = str((await request.form()).get("token", ""))
+    if not token:
+        return PlainTextResponse("falta token", status_code=400)
+    try:
+        await run_in_threadpool(process_payment, token)
+    except flow.FlowError:
+        return PlainTextResponse("reintentar", status_code=503)  # Flow vuelve a intentar
+    return PlainTextResponse("OK")
+
+
+@app.api_route("/pago/retorno", methods=["GET", "POST"])
+async def payment_return(request: Request):
+    rate_limit(request, "retorno", limit=30)
+    token = request.query_params.get("token") or str((await request.form()).get("token", ""))
+    try:
+        pay, status = await run_in_threadpool(process_payment, token) if token else (None, 0)
+    except flow.FlowError:
+        pay, status = None, flow.PENDING
+    return render(request, "pago.html", user=current_user(request), pay=pay, estado=status,
+                  producto=PRODUCTS.get(pay["product"], "") if pay else "")
 
 
 @app.post("/cuenta/eliminar")

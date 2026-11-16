@@ -132,3 +132,23 @@ main.acceso+.pie .pie-pixeles{display:none}
 @media(max-width:640px){.qr{grid-template-columns:88px 1fr;gap:12px}.qr img{width:88px;height:88px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .d0{animation-delay:120ms}.d1{animation-delay:165ms}.d2{animation-delay:210ms}.d3{animation-delay:255ms}.d4{animation-delay:300ms}.d5{animation-delay:345ms}.d6{animation-delay:390ms}.d7{animation-delay:435ms}.d8{animation-delay:480ms}.d9{animation-delay:525ms}.d10{animation-delay:570ms}.d11{animation-delay:615ms}.d12{animation-delay:660ms}.d13{animation-delay:705ms}.d14{animation-delay:750ms}.d15{animation-delay:795ms}.d16{animation-delay:840ms}.d17{animation-delay:885ms}
+
+/* planes y pagos */
+.planes-cabeza{max-width:62ch;margin:8px 0 24px}
+.planes-cabeza h1{font-size:clamp(1.9rem,4.5vw,2.8rem);font-weight:800;letter-spacing:-.03em}
+.planes{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:18px}
+.plan{background:var(--carta);border:1.5px solid var(--borde);border-radius:16px;padding:20px;display:flex;flex-direction:column}
+.plan h2{margin:0}
+.plan ul{padding-left:18px;margin:12px 0 18px;flex:1}
+.plan li{margin:4px 0}
+.plan form{margin:0}
+.precio{font-family:var(--titulo);font-size:1.9rem;font-weight:800;margin:6px 0 0;letter-spacing:-.02em}
+.precio span{white-space:nowrap;font-family:"Figtree",sans-serif;font-size:.9rem;font-weight:500;color:var(--suave);letter-spacing:0}
+.destacado-plan{border-color:var(--violeta);box-shadow:6px 6px 0 var(--violeta)}
+button.destacado{box-shadow:inset 0 0 0 1.5px var(--violeta);color:var(--violeta)}
+.oferta{border-color:var(--violeta)}
+.bloqueado{background:#fff4d6;color:#6a4a00}
+fieldset.diseno{border:1.5px solid var(--borde);border-radius:12px;padding:6px 16px 14px;margin:18px 0 0}
+fieldset.diseno legend{font-family:var(--titulo);font-weight:700;padding:0 6px}
+.colores{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+input[type=color]{width:100%;height:44px;padding:4px;border:1.5px solid var(--borde);border-radius:10px;background:#fff}

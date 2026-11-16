@@ -10,7 +10,7 @@ ORIGEN="$(cd "$(dirname "$0")/.." && pwd)"
 APP=/opt/qr-propio; DATOS=/var/lib/qr-propio; ENV=/etc/qr-propio.env
 
 apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-venv sqlite3 caddy curl
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-venv sqlite3 caddy curl fonts-dejavu-core
 
 id qr >/dev/null 2>&1 || useradd --system --home "$DATOS" --shell /usr/sbin/nologin qr
 mkdir -p "$APP" "$DATOS/respaldos"

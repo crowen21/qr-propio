@@ -12,8 +12,21 @@ DB_PATH = DATA_DIR / "qr.db"
 BASE_URL = os.environ.get("QR_BASE_URL", "http://localhost:8000").rstrip("/")
 SITE_NAME = os.environ.get("QR_SITE_NAME", "QR Propio")
 
-# Límite de QR por cuenta en el plan gratuito.
-MAX_QRS_FREE = int(os.environ.get("QR_MAX_QRS_FREE", "50"))
+# Planes. Precios en pesos chilenos, IVA incluido.
+FREE_QRS = int(os.environ.get("QR_FREE_QRS", "1"))        # códigos sin pagar por cuenta
+PRO_QRS = int(os.environ.get("QR_PRO_QRS", "100"))        # códigos con plan Pro
+PRICES = {
+    "qr": int(os.environ.get("QR_PRECIO_PERMANENTE", "9990")),
+    "pro_mes": int(os.environ.get("QR_PRECIO_PRO_MES", "3990")),
+    "pro_anual": int(os.environ.get("QR_PRECIO_PRO_ANUAL", "34990")),
+}
+PRO_DAYS = {"pro_mes": 31, "pro_anual": 366}
+
+# Pagos con Flow. Sin clave los botones de compra no aparecen.
+# Sandbox: https://sandbox.flow.cl/api   Producción: https://www.flow.cl/api
+FLOW_API_URL = os.environ.get("QR_FLOW_API_URL", "https://sandbox.flow.cl/api").rstrip("/")
+FLOW_API_KEY = os.environ.get("QR_FLOW_API_KEY", "")
+FLOW_SECRET = os.environ.get("QR_FLOW_SECRET", "")
 
 # Correo (SMTP). Sin QR_SMTP_HOST los enlaces de verificación se escriben en el registro del servicio.
 SMTP_HOST = os.environ.get("QR_SMTP_HOST", "")

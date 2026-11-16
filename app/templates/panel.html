@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block titulo %}Mis códigos · {{ site }}{% endblock %}
 {% block cuerpo %}
-<h1>Mis códigos QR {% if user.plan == 'pro' %}<span class="etiqueta pro">Plan Pro</span>{% endif %}</h1>
-<p class="suave">{{ qrs|length }} de {{ max_qrs if user.plan == 'free' else '∞' }} códigos · no caducan</p>
+<h1>Mis códigos QR {% if pro %}<span class="etiqueta pro">Plan Pro</span>{% endif %}</h1>
+<p class="suave">{% if pro %}Plan Pro{% if pro_hasta %} hasta el {{ pro_hasta }}{% endif %}: {{ usados }} de {{ max_qrs }} códigos.{% else %}Plan gratis: {{ usados }} de {{ max_qrs }} código{{ 's' if max_qrs != 1 }}.{% endif %}
+Tus códigos nunca se apagan, aunque dejes de pagar. <a href="/planes">Ver planes</a></p>
 
 <div class="carta">
 <h2>Nuevo código: ¿qué quieres que abra?</h2>
@@ -25,13 +26,17 @@
     <div class="destino chico"><strong>{{ KINDS[q.kind].label }}</strong> ·
       {% if q.kind == 'url' %}<a href="{{ q.target }}" rel="noopener noreferrer" target="_blank">{{ q.target }}</a>{% else %}{{ resumen(q) }}{% endif %}</div>
     <div class="suave chico">{% if q.kind in STATIC %}Datos dentro del QR · no cuenta escaneos{% else %}{{ base_url }}/r/{{ q.code }} · {{ q.scans }} escaneos{% endif %}</div>
+    {% if q.id not in editable_ids %}<p class="aviso chico bloqueado">Sigue funcionando. Para editarlo, renueva Pro o hazlo permanente.</p>{% endif %}
     {% if q.status != 'ok' %}<p class="aviso error chico">{{ q.flag_reason }} Cambia el destino para reactivarlo.</p>{% endif %}
     <div class="acciones">
       <a class="boton" href="/qr/{{ q.id }}/imagen.png?descargar=1">PNG</a>
-      <a class="boton secundario" href="/qr/{{ q.id }}/imagen.svg?descargar=1">SVG</a>
+      {% if q.id in premium_ids %}<a class="boton secundario" href="/qr/{{ q.id }}/imagen.svg?descargar=1">SVG</a>
+      <a class="boton secundario" href="/qr/{{ q.id }}/imagen.pdf?descargar=1">PDF</a>{% endif %}
       <form method="post" action="/qr/{{ q.id }}/correo"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="secundario">Enviar a mi correo</button></form>
-      <a class="boton secundario" href="/qr/{{ q.id }}/editar">Editar</a>
+      {% if q.id in editable_ids %}<a class="boton secundario" href="/qr/{{ q.id }}/editar">Editar</a>{% endif %}
       {% if q.kind not in STATIC %}<form method="post" action="/qr/{{ q.id }}/estado"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="secundario">{{ 'Pausar' if q.active else 'Reactivar' }}</button></form>{% endif %}
+      {% if not q.paid and pagos_activos() %}<form method="post" action="/comprar"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="product" value="qr"><input type="hidden" name="qr_id" value="{{ q.id }}"><button class="secundario destacado">Hacer permanente con logo · {{ pesos(PRECIOS.qr) }}</button></form>{% endif %}
+      {% if q.paid %}<span class="etiqueta pro">Permanente</span>{% endif %}
       <details><summary>Eliminar</summary>
         <form method="post" action="/qr/{{ q.id }}/eliminar"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="peligro">{{ 'Sí, eliminar de mi panel' if q.kind in STATIC else 'Sí, eliminar: el QR impreso dejará de funcionar' }}</button></form>
       </details>
@@ -42,9 +47,10 @@
 <p class="suave">Todavía no tienes códigos. Crea el primero arriba.</p>
 {% endfor %}
 
-{% if user.plan == 'free' %}
-<div class="carta"><h2>Tu logo al centro del QR <span class="etiqueta pro">Plan de pago</span></h2>
-<p class="suave">Próximamente podrás poner el logo de tu marca dentro de cada código. Los códigos gratuitos siguen funcionando igual.</p></div>
+{% if not pro %}
+<div class="carta oferta"><h2>Dale tu marca a tus códigos</h2>
+<p class="suave">Logo al centro, tus colores, un marco con texto como «Escanea para ver la carta», archivos PDF y SVG para imprenta y sin la marca de {{ site }}.</p>
+<div class="fila"><a class="boton" href="/planes">Ver planes desde {{ pesos(PRECIOS.pro_mes) }} al mes</a></div></div>
 {% endif %}
 
 <details><summary>Eliminar mi cuenta</summary>
