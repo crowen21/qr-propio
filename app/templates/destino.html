@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block titulo %}{{ KINDS[q.kind].label }} · {{ site }}{% endblock %}
+{% block cuerpo %}
+<div class="carta estrecho destino-qr">
+{% if q.kind == 'texto' %}
+  <p class="texto-libre">{{ d.text }}</p>
+{% elif q.kind == 'vcard' %}
+  <h1>{{ d.full_name }}</h1>
+  {% if d.title or d.org %}<p class="suave">{{ d.title }}{{ ' · ' if d.title and d.org }}{{ d.org }}</p>{% endif %}
+  <dl>
+  {% if d.phone %}<dt>Teléfono</dt><dd><a href="tel:{{ d.phone }}">{{ d.phone }}</a></dd>{% endif %}
+  {% if d.email %}<dt>Correo</dt><dd><a href="mailto:{{ d.email }}">{{ d.email }}</a></dd>{% endif %}
+  {% if d.website %}<dt>Sitio web</dt><dd class="destino">{{ d.website }}</dd>{% endif %}
+  </dl>
+{% elif q.kind == 'email' %}
+  <h1>Escribir a</h1><p class="destino">{{ d.to }}</p>
+  {% if d.subject %}<p class="suave">Asunto: {{ d.subject }}</p>{% endif %}
+{% else %}
+  <h1>{{ 'Llamar a' if q.kind == 'tel' else 'Enviar SMS a' }}</h1><p class="grande">{{ d.phone }}</p>
+  {% if d.message %}<p class="suave texto-libre">{{ d.message }}</p>{% endif %}
+{% endif %}
+{% if accion %}<p><a class="boton ancho-total" href="{{ accion[1] }}">{{ accion[0] }}</a></p>{% endif %}
+<p class="suave chico">Contenido publicado por un usuario de {{ site }}.</p>
+</div>
+{% endblock %}

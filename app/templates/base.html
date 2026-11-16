@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titulo %}{{ site }}{% endblock %}</title>
+<link rel="preload" href="/static/fuentes/bricolage.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/static/estilo.css">
+</head>
+<body>
+<header class="sitio"><div class="ancho">
+  <a class="marca" href="/"><svg viewBox="0 0 7 7" aria-hidden="true"><rect x=".5" y=".5" width="6" height="6" rx="1.6" fill="none" stroke="#5b2eff"/><rect x="2" y="2" width="3" height="3" rx=".9" fill="#ff2e88"/></svg>{{ site }}</a>
+  <nav>
+  {% if user %}
+    <span class="suave chico">{{ user.name }}</span>
+    <form method="post" action="/salir"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="secundario">Salir</button></form>
+  {% else %}
+    <a href="/ingresar">Ingresar</a>
+    <a class="boton" href="/registro">Crear cuenta</a>
+  {% endif %}
+  </nav>
+</div></header>
+{% block principal %}
+<main><div class="ancho">
+{% include "_avisos.html" %}
+{% block cuerpo %}{% endblock %}
+</div></main>
+{% endblock %}
+<footer class="pie">
+  <div class="pie-pixeles" aria-hidden="true"></div>
+  <div class="ancho pie-cuerpo">
+    <p class="pie-marca">{{ site }}</p>
+    <div class="pie-linea">
+      <p>Códigos QR que no caducan, con cada enlace revisado antes de publicarse.</p>
+      <nav>{% if not user %}<a href="/registro">Crear cuenta</a><a href="/ingresar">Ingresar</a>{% else %}<a href="/panel">Mis códigos</a>{% endif %}<a href="/privacidad">Privacidad y seguridad</a></nav>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

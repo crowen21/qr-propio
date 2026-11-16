@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block titulo %}Mis códigos · {{ site }}{% endblock %}
+{% block cuerpo %}
+<h1>Mis códigos QR {% if user.plan == 'pro' %}<span class="etiqueta pro">Plan Pro</span>{% endif %}</h1>
+<p class="suave">{{ qrs|length }} de {{ max_qrs if user.plan == 'free' else '∞' }} códigos · no caducan</p>
+
+<div class="carta">
+<h2>Nuevo código: ¿qué quieres que abra?</h2>
+<div class="tipos">
+{% for k, t in KINDS.items() %}
+  <a class="tipo" href="/qr/nuevo?tipo={{ k }}"><strong>{{ t.label }}</strong><span>{{ t.desc }}</span></a>
+{% endfor %}
+</div>
+</div>
+
+{% for q in qrs %}
+<div class="carta qr">
+  <img src="/qr/{{ q.id }}/imagen.svg" alt="Código QR de {{ q.name }}" width="120" height="120">
+  <div>
+    <h3>{{ q.name }}
+      {% if q.status != 'ok' %}<span class="etiqueta mal">Bloqueado por seguridad</span>
+      {% elif not q.active %}<span class="etiqueta pausa">Pausado</span>
+      {% else %}<span class="etiqueta">Activo</span>{% endif %}
+    </h3>
+    <div class="destino chico"><strong>{{ KINDS[q.kind].label }}</strong> ·
+      {% if q.kind == 'url' %}<a href="{{ q.target }}" rel="noopener noreferrer" target="_blank">{{ q.target }}</a>{% else %}{{ resumen(q) }}{% endif %}</div>
+    <div class="suave chico">{% if q.kind in STATIC %}Datos dentro del QR · no cuenta escaneos{% else %}{{ base_url }}/r/{{ q.code }} · {{ q.scans }} escaneos{% endif %}</div>
+    {% if q.status != 'ok' %}<p class="aviso error chico">{{ q.flag_reason }} Cambia el destino para reactivarlo.</p>{% endif %}
+    <div class="acciones">
+      <a class="boton" href="/qr/{{ q.id }}/imagen.png?descargar=1">PNG</a>
+      <a class="boton secundario" href="/qr/{{ q.id }}/imagen.svg?descargar=1">SVG</a>
+      <form method="post" action="/qr/{{ q.id }}/correo"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="secundario">Enviar a mi correo</button></form>
+      <a class="boton secundario" href="/qr/{{ q.id }}/editar">Editar</a>
+      {% if q.kind not in STATIC %}<form method="post" action="/qr/{{ q.id }}/estado"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="secundario">{{ 'Pausar' if q.active else 'Reactivar' }}</button></form>{% endif %}
+      <details><summary>Eliminar</summary>
+        <form method="post" action="/qr/{{ q.id }}/eliminar"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="peligro">{{ 'Sí, eliminar de mi panel' if q.kind in STATIC else 'Sí, eliminar: el QR impreso dejará de funcionar' }}</button></form>
+      </details>
+    </div>
+  </div>
+</div>
+{% else %}
+<p class="suave">Todavía no tienes códigos. Crea el primero arriba.</p>
+{% endfor %}
+
+{% if user.plan == 'free' %}
+<div class="carta"><h2>Tu logo al centro del QR <span class="etiqueta pro">Plan de pago</span></h2>
+<p class="suave">Próximamente podrás poner el logo de tu marca dentro de cada código. Los códigos gratuitos siguen funcionando igual.</p></div>
+{% endif %}
+
+<details><summary>Eliminar mi cuenta</summary>
+<div class="carta estrecho">
+<p class="chico">Se borran tus datos y todos tus códigos dejan de funcionar. No se puede deshacer.</p>
+<form method="post" action="/cuenta/eliminar">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% if sin_clave %}
+  <label for="delmail">Escribe tu correo ({{ user.email }}) para confirmar</label>
+  <input id="delmail" name="confirm_email" type="email" required autocomplete="off">
+  {% else %}
+  <label for="delpw">Confirma con tu clave</label>
+  <input id="delpw" name="password" type="password" required autocomplete="current-password">
+  {% endif %}
+  <div class="fila"><button class="peligro">Eliminar mi cuenta</button></div>
+</form>
+</div>
+</details>
+{% endblock %}

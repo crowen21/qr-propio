@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block titulo %}Enlace bloqueado · {{ site }}{% endblock %}
+{% block cuerpo %}
+<div class="carta estrecho">
+<h1>Detuvimos este código QR</h1>
+<p>El sitio al que lleva este código fue reportado como posiblemente peligroso (phishing o programas dañinos), así que no te redirigimos.</p>
+<p class="suave chico">Si eres el dueño del código, ingresa a tu panel y revisa el enlace de destino.{% if google %} Aviso proporcionado por Google: <a href="https://developers.google.com/safe-browsing/v4/advisory" rel="noopener">Safe Browsing Advisory</a>.{% endif %}</p>
+</div>
+{% endblock %}

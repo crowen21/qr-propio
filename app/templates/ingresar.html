@@ -1,0 +1,18 @@
+{% extends "acceso.html" %}
+{% block titulo %}Ingresar · {{ site }}{% endblock %}
+{% block formulario %}
+<h1>Ingresar</h1>
+<form method="post" action="/ingresar">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="email">Correo</label>
+  <input id="email" name="email" type="email" required autocomplete="email">
+  <label for="password">Clave</label>
+  <input id="password" name="password" type="password" required autocomplete="current-password">
+  <div class="fila"><button>Ingresar</button><a href="/recuperar">Olvidé mi clave</a></div>
+  <p class="suave chico">¿Primera vez? <a href="/registro">Crea tu cuenta</a></p>
+</form>
+{% if proveedores() %}
+<p class="separador"><span>o</span></p>
+{% for k, nombre in proveedores() %}<a class="boton secundario ancho-total social" href="/entrar/{{ k }}">Continuar con {{ nombre }}</a>{% endfor %}
+{% endif %}
+{% endblock %}

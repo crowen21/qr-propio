@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block titulo %}{{ 'Editar' if q else 'Nuevo' }} código · {{ site }}{% endblock %}
+{% block cuerpo %}
+<div class="carta estrecho">
+<p class="suave chico"><a href="/panel">← Mis códigos</a></p>
+<h1>{{ 'Editar' if q else 'Nuevo' }}: {{ spec.label }}</h1>
+{% if kind in STATIC %}
+<p class="aviso ok chico">Este tipo guarda los datos dentro del propio QR: funciona sin internet y sin depender de este sitio, pero no cuenta escaneos{% if q %} y <strong>si cambias algo tendrás que reimprimirlo</strong>{% else %} y para cambiarlo después hay que reimprimirlo{% endif %}.</p>
+{% elif q %}
+<p class="suave chico">El QR impreso no cambia: solo cambia lo que abre.</p>
+{% endif %}
+<form method="post" action="{{ '/qr/%d/editar' % q.id if q else '/qr/nuevo' }}" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="kind" value="{{ kind }}">
+  <label for="name">Nombre del código (solo lo ves tú)</label>
+  <input id="name" name="name" type="text" value="{{ values.name }}" required maxlength="80" placeholder="Mesa 4, vitrina, tarjeta…">
+  {% for f in spec.fields %}
+  <label for="f-{{ f.key }}">{{ f.label }}</label>
+  {% if f.type == 'textarea' %}
+  <textarea id="f-{{ f.key }}" name="{{ f.key }}" rows="4" maxlength="{{ f.max }}" placeholder="{{ f.hint }}" {{ 'required' if f.required }}>{{ values[f.key] }}</textarea>
+  {% elif f.type == 'select' %}
+  <select id="f-{{ f.key }}" name="{{ f.key }}">
+    {% for v, t in f.options %}<option value="{{ v }}" {{ 'selected' if values[f.key] == v }}>{{ t }}</option>{% endfor %}
+  </select>
+  {% else %}
+  <input id="f-{{ f.key }}" name="{{ f.key }}" type="text" value="{{ values[f.key] }}" maxlength="{{ f.max }}" placeholder="{{ f.hint }}" {{ 'required' if f.required }}>
+  {% endif %}
+  {% endfor %}
+  {% if q and user.plan == 'pro' %}
+  <label for="logo">Logo al centro (PNG, JPG o WEBP, máx. 2 MB)</label>
+  <input id="logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp">
+  {% if q.logo %}<label><input type="checkbox" name="remove_logo" value="1"> Quitar el logo actual</label>{% endif %}
+  <p class="suave chico">Después de cambiar el logo, descarga el QR de nuevo y pruébalo con tu teléfono antes de imprimir.</p>
+  {% elif q %}
+  <p class="suave chico">Logo al centro del QR: disponible en el plan de pago (próximamente).</p>
+  {% endif %}
+  <div class="fila"><button>{{ 'Guardar' if q else 'Crear QR' }}</button><a href="/panel">Cancelar</a></div>
+</form>
+</div>
+{% endblock %}
