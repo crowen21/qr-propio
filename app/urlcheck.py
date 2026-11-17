@@ -110,7 +110,7 @@ def check_url(conn, url: str) -> tuple[bool, str]:
             return False, "El enlace apunta a una red interna o privada."
 
     if _in_blocklist(conn, host):
-        return False, "El dominio figura en listas de sitios maliciosos (URLhaus)."
+        return False, "El dominio figura en listas públicas de sitios maliciosos o de phishing."
     threat = _safe_browsing(url)
     if threat:
         return False, f"Google Safe Browsing lo reporta como posible sitio peligroso ({threat})."

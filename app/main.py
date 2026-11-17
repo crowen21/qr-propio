@@ -557,6 +557,10 @@ def qr_save(request: Request, qr_id: int | None, form: dict):
                 ok, why = check_url(c, target)
                 if not ok:
                     raise ValueError(why)
+            if kind == "vcard" and data.get("website"):  # la tarjeta muestra el sitio como enlace
+                ok, why = check_url(c, data["website"])
+                if not ok:
+                    raise ValueError("Sitio web de la tarjeta: " + why)
             upload = form.get("logo")
             if upload is not None and getattr(upload, "filename", "") and not diseno:
                 raise ValueError("El logo, los colores y el marco son parte de los planes de pago.")

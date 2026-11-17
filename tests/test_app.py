@@ -598,3 +598,29 @@ def test_stats_page(c):
         assert conn.execute("SELECT COUNT(*) FROM scans").fetchone()[0] == 3
     other = signup(TestClient(app), email="beto@example.com")
     assert other.get(f"/qr/{qid}/estadisticas").status_code == 404
+
+
+def test_blocklist_update_and_failure_alert(c, monkeypatch):
+    class R:
+        def __init__(self, text, code=200): self.text, self.code = text, code
+        def raise_for_status(self):
+            if self.code >= 400: raise RuntimeError(f"HTTP {self.code}")
+    urls = ["https://a.example/malware.txt", "https://b.example/phishing.txt"]
+    monkeypatch.setattr(maintenance.config, "BLOCKLIST_URLS", urls)
+    monkeypatch.setattr(maintenance.config, "ADMIN_EMAIL", "admin@example.com")
+    feeds = {urls[0]: R("# lista\n0.0.0.0 malo.example\n"), urls[1]: R("0.0.0.0 phish.example\n0.0.0.0 banco-falso.example\n")}
+    monkeypatch.setattr(maintenance.httpx, "get", lambda u, **k: feeds[u])
+    assert maintenance.update_blocklist() == 3
+    feeds[urls[1]] = R("", 410)                                   # una fuente se cae
+    assert maintenance.update_blocklist() == 0
+    with db.connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM blocklist").fetchone()[0] == 3   # se conserva la anterior
+    assert mailer.outbox[-1][0] == "admin@example.com" and "410" in mailer.outbox[-1][2]
+
+
+def test_vcard_website_checked(c):
+    signup(c); set_pro()
+    with db.connect() as conn:
+        conn.execute("INSERT INTO blocklist VALUES ('phish.example')")
+    r = c.post("/qr/nuevo", data={"kind": "vcard", "name": "T", "full_name": "Ana", "website": "https://login.phish.example/x", "csrf": csrf(c, "/qr/nuevo")})
+    assert r.status_code == 400 and "Sitio web de la tarjeta" in r.text

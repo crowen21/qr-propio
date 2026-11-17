@@ -43,11 +43,18 @@ GOOGLE_CLIENT_SECRET = os.environ.get("QR_GOOGLE_CLIENT_SECRET", "")
 MS_CLIENT_ID = os.environ.get("QR_MS_CLIENT_ID", "")
 MS_CLIENT_SECRET = os.environ.get("QR_MS_CLIENT_SECRET", "")
 
+# Correo que recibe las alertas del sistema (por ejemplo, si falla la lista de sitios peligrosos).
+ADMIN_EMAIL = os.environ.get("QR_ADMIN_EMAIL", "")
+
 # Seguridad de enlaces.
 SAFE_BROWSING_KEY = os.environ.get("QR_SAFE_BROWSING_KEY", "")
 BLOCKLIST_URLS = [
     u for u in os.environ.get(
-        "QR_BLOCKLIST_URLS", "https://urlhaus.abuse.ch/downloads/hostfile/"
+        "QR_BLOCKLIST_URLS",
+        # abuse.ch dejó de entregar URLhaus sin clave el 21-10-2026; se usan los espejos públicos de malware-filter
+        # (URLhaus para malware y OpenPhish/PhishTank para phishing), actualizados cada 12 horas.
+        "https://malware-filter.gitlab.io/malware-filter/urlhaus-filter-hosts-online.txt,"
+        "https://malware-filter.gitlab.io/malware-filter/phishing-filter-hosts.txt"
     ).split(",") if u.strip()
 ]
 

@@ -30,20 +30,34 @@ def parse_hosts(text: str) -> set[str]:
 
 
 def update_blocklist() -> int:
+    """Descarga todas las listas. Solo reemplaza la lista guardada si TODAS se descargaron bien;
+    si alguna falla se conserva la anterior y se avisa al administrador."""
     hosts: set[str] = set()
+    fallas = []
     for url in config.BLOCKLIST_URLS:
         try:
             r = httpx.get(url.strip(), timeout=30, follow_redirects=True)
             r.raise_for_status()
-            hosts |= parse_hosts(r.text)
+            nuevos = parse_hosts(r.text)
+            if not nuevos:
+                raise ValueError("la lista llegó vacía")
+            hosts |= nuevos
         except Exception as e:
             log.warning("No se pudo descargar %s: %s", url, e)
-    if not hosts:  # si falló la descarga se conserva la lista anterior
-        return 0
+            fallas.append(f"{url}: {e}")
     with db.connect() as c:
-        c.execute("DELETE FROM blocklist")
-        c.executemany("INSERT OR IGNORE INTO blocklist VALUES (?)", [(h,) for h in hosts])
-    return len(hosts)
+        if hosts and not fallas:
+            c.execute("DELETE FROM blocklist")
+            c.executemany("INSERT OR IGNORE INTO blocklist VALUES (?)", [(h,) for h in hosts])
+            return len(hosts)
+        guardados = c.execute("SELECT COUNT(*) FROM blocklist").fetchone()[0]
+    log.error("Listas de sitios peligrosos con fallas; se mantiene la lista anterior (%d dominios).", guardados)
+    if config.ADMIN_EMAIL:
+        mailer.send(config.ADMIN_EMAIL, f"Alerta de {config.SITE_NAME}: falló la lista de sitios peligrosos",
+                    "Hola:\n\nLa revisión diaria no pudo descargar estas listas:\n" + "\n".join(fallas) +
+                    f"\n\nSe mantiene la lista anterior, con {guardados} dominios. "
+                    "Si la lista quedó en 0, los enlaces nuevos no se están comparando con sitios peligrosos.")
+    return 0
 
 
 def recheck() -> tuple[int, int]:
