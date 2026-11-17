@@ -37,6 +37,11 @@
   <label for="logo">Logo al centro (PNG, JPG o WEBP, máx. 2 MB)</label>
   <input id="logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp">
   {% if q and q.logo %}<label><input type="checkbox" name="remove_logo" value="1"> Quitar el logo actual</label>{% endif %}
+  <label for="logo_size">Tamaño del logo</label>
+  <select id="logo_size" name="logo_size">
+    {% for v, t in (("l", "Grande (recomendado)"), ("m", "Mediano"), ("s", "Pequeño")) %}<option value="{{ v }}" {{ 'selected' if (values.logo_size or 'l') == v }}>{{ t }}</option>{% endfor %}
+  </select>
+  <p class="suave chico">El logo se adapta solo a su forma: horizontal, vertical o cuadrado. Se recortan los bordes vacíos de la imagen. El tamaño grande es el máximo que probamos sin que el código deje de leerse.</p>
   <p class="suave chico">El código debe ser más oscuro que el fondo. Después de cambiar el diseño, descarga el QR y pruébalo con tu teléfono antes de imprimir.</p>
   </fieldset>
   {% else %}

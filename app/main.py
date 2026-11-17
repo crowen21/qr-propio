@@ -464,7 +464,8 @@ def mark_text() -> str:
 def qr_image_bytes(user, q, fmt: str) -> bytes:
     data = kinds.payload(q["kind"], qr_data(q), f"{config.BASE_URL}/r/{q['code']}")
     if premium(user, q):
-        return qrdraw.render(fmt, data, logo=q["logo"], fg=q["fg"], bg=q["bg"], frame=q["frame"] or "")
+        return qrdraw.render(fmt, data, logo=q["logo"], fg=q["fg"], bg=q["bg"], frame=q["frame"] or "",
+                             logo_size=q["logo_size"] or "l")
     return qrdraw.render(fmt, data, mark=mark_text())
 
 
@@ -550,6 +551,7 @@ def qr_save(request: Request, qr_id: int | None, form: dict):
         fg = q["fg"] if q else None
         bg = q["bg"] if q else None
         frame = q["frame"] if q else None
+        logo_size = q["logo_size"] if q else None
         try:
             if not name:
                 raise ValueError("Ponle un nombre al código para reconocerlo después.")
@@ -579,6 +581,9 @@ def qr_save(request: Request, qr_id: int | None, form: dict):
                 if problema:
                     raise ValueError(problema)
                 frame = " ".join(str(form.get("frame", "")).split())[:40] or None
+                logo_size = str(form.get("logo_size", "l"))
+                if logo_size not in qrdraw.LOGO_SIZES:
+                    logo_size = "l"
                 if form.get("remove_logo"):
                     logo = None
                 elif upload is not None and getattr(upload, "filename", ""):
@@ -588,15 +593,15 @@ def qr_save(request: Request, qr_id: int | None, form: dict):
             return qr_form(request, user, kind, values, q=q, status=400, error=str(e))
         blob = json.dumps(data, ensure_ascii=False)
         if q:
-            c.execute("UPDATE qrs SET name=?, target=?, data=?, logo=?, fg=?, bg=?, frame=?, status='ok', "
-                      "flag_reason=NULL, checked_at=? WHERE id=?",
-                      (name, target, blob, logo, fg, bg, frame, now(), qr_id))
+            c.execute("UPDATE qrs SET name=?, target=?, data=?, logo=?, fg=?, bg=?, frame=?, logo_size=?, "
+                      "status='ok', flag_reason=NULL, checked_at=? WHERE id=?",
+                      (name, target, blob, logo, fg, bg, frame, logo_size, now(), qr_id))
         else:
             code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(7))
             new_id = c.execute(
-                "INSERT INTO qrs (user_id,code,name,kind,target,data,logo,fg,bg,frame,created_at,checked_at) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                (user["id"], code, name, kind, target, blob, logo, fg, bg, frame, now(), now())).lastrowid
+                "INSERT INTO qrs (user_id,code,name,kind,target,data,logo,fg,bg,frame,logo_size,created_at,checked_at) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (user["id"], code, name, kind, target, blob, logo, fg, bg, frame, logo_size, now(), now())).lastrowid
             created = c.execute("SELECT * FROM qrs WHERE id=?", (new_id,)).fetchone()
     if q:
         flash(request, "Cambios guardados.")
@@ -625,7 +630,8 @@ def qr_edit_form(request: Request, qr_id: int):
     user = require_user(request)
     with db.connect() as c:
         q = own_qr(c, user, qr_id)
-    return qr_form(request, user, q["kind"], {**qr_data(q), "name": q["name"]}, q=q)
+    design = {k: q[k] for k in ("fg", "bg", "frame", "logo_size") if q[k]}  # el diseño guardado no se pierde al editar
+    return qr_form(request, user, q["kind"], {**qr_data(q), **design, "name": q["name"]}, q=q)
 
 
 @app.post("/qr/{qr_id}/editar")

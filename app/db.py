@@ -83,7 +83,7 @@ def init():
         cols = {r["name"] for r in c.execute("PRAGMA table_info(qrs)")}
         for col, ddl in (("logo", "BLOB"), ("kind", "TEXT NOT NULL DEFAULT 'url'"), ("data", "TEXT"),
                          ("paid", "INTEGER NOT NULL DEFAULT 0"), ("fg", "TEXT"), ("bg", "TEXT"),
-                         ("frame", "TEXT")):
+                         ("frame", "TEXT"), ("logo_size", "TEXT")):
             if col not in cols:  # bases creadas con una versión anterior
                 c.execute(f"ALTER TABLE qrs ADD COLUMN {col} {ddl}")
         ucols = {r["name"] for r in c.execute("PRAGMA table_info(users)")}

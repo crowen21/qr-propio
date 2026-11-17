@@ -652,3 +652,27 @@ def test_wide_logo_uses_more_width_and_trims_margins():
     assert lw > 0.4 * n and abs(lw / lh - 4) < 0.05            # se recortó el margen y ocupa más ancho
     assert lw * lh <= render.LOGO_AREA * n * n + 1e-6
     assert _Image.open(_io.BytesIO(data)).size == (400, 100)
+
+
+def test_logo_size_choice_vertical_logo_and_edit_keeps_design(c):
+    from app import render
+    signup(c); set_pro()
+    r = c.post("/qr/nuevo", data={"kind": "url", "name": "Mesa", "target": "https://ejemplo.cl/carta", "fg": "#1b1464",
+                                  "bg": "#fff7e6", "frame": "Carta", "logo_size": "m", "csrf": csrf(c, "/qr/nuevo")})
+    qid = re.search(r"/qr/(\d+)/editar", r.text).group(1)
+    form = c.get(f"/qr/{qid}/editar").text
+    assert 'value="#1b1464"' in form and 'value="#fff7e6"' in form and 'value="Carta"' in form
+    assert '<option value="m" selected' in form
+    vertical = io.BytesIO(); Image.new("RGB", (120, 360), "navy").save(vertical, "PNG")
+    data = {"name": "Mesa", "target": "https://ejemplo.cl/carta", "fg": "#1b1464", "bg": "#fff7e6",
+            "frame": "Carta", "logo_size": "l", "csrf": csrf(c, "/panel")}
+    assert c.post(f"/qr/{qid}/editar", data=data, files={"logo": ("v.png", vertical.getvalue(), "image/png")}).status_code == 200
+    assert decode(c.get(f"/qr/{qid}/imagen.png").content) == f"http://testserver/r/{code_of(c)}"
+    sizes = {}
+    for s in ("s", "m", "l"):
+        lay = render.layout("https://facilqr.cl/r/abc", logo=vertical.getvalue(), logo_size=s)
+        _, _, _, lw, lh, _ = [e for e in lay["els"] if e[0] == "image"][0]
+        assert lh > lw * 2.9                                       # se respeta la forma vertical
+        sizes[s] = lw * lh
+    assert sizes["s"] < sizes["m"] < sizes["l"]
+    assert c.post(f"/qr/{qid}/editar", data={**data, "logo_size": "enorme"}).status_code == 200  # valor raro: queda grande

@@ -52,7 +52,8 @@ def _font(px: int):
         return ImageFont.load_default()
 
 
-LOGO_AREA, LOGO_MAX_W, LOGO_MAX_H = 0.085, 0.46, 0.30   # fracciones del lado del QR
+LOGO_AREA, LOGO_MAX_W, LOGO_MAX_H = 0.085, 0.46, 0.30   # tamaño máximo, en fracciones del lado del QR
+LOGO_SIZES = {"l": 1.0, "m": 0.75, "s": 0.5}            # grande (probado como límite seguro), mediano, pequeño
 
 
 def _trim(logo: bytes) -> tuple[bytes, float]:
@@ -74,7 +75,7 @@ def _trim(logo: bytes) -> tuple[bytes, float]:
 
 
 def layout(data: str, *, fg=DEFAULT_FG, bg=DEFAULT_BG, logo: bytes | None = None,
-           frame: str = "", mark: str = "") -> dict:
+           frame: str = "", mark: str = "", logo_size: str = "l") -> dict:
     """Calcula el diseño en módulos. mark = texto de marca de agua (plan gratis)."""
     fg, bg = fg or DEFAULT_FG, bg or DEFAULT_BG
     qr = segno.make(data, error="h" if logo else "m")
@@ -93,9 +94,10 @@ def layout(data: str, *, fg=DEFAULT_FG, bg=DEFAULT_BG, logo: bytes | None = None
         # Tamaño por superficie: un logo alargado gana ancho sin tapar más código que uno cuadrado.
         # Con corrección de errores alta ("h") el lector recupera hasta ~30 % de datos dañados;
         # el logo y su borde tapan como máximo ~12 %, dejando margen para impresiones imperfectas.
-        area = LOGO_AREA * n * n
+        f = LOGO_SIZES.get(logo_size or "l", 1.0)
+        area = LOGO_AREA * f * n * n
         lw, lh = (area * ratio) ** 0.5, (area / ratio) ** 0.5
-        k = min(1.0, LOGO_MAX_W * n / lw, LOGO_MAX_H * n / lh)
+        k = min(1.0, LOGO_MAX_W * f ** 0.5 * n / lw, LOGO_MAX_H * f ** 0.5 * n / lh)
         lw, lh = lw * k, lh * k
         box = 1.0
         bx, by = qr_x + (n - lw) / 2 - box, qr_y + (n - lh) / 2 - box
