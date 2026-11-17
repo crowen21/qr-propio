@@ -20,8 +20,8 @@ main{flex:1;padding:28px 0 64px}
 /* cabecera */
 header.sitio{background:var(--carta);border-bottom:1px solid var(--borde)}
 header.sitio .ancho{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;padding-bottom:12px;max-width:1200px}
-.marca{display:inline-flex;align-items:center;gap:10px;font-family:var(--titulo);font-weight:750;font-size:1.25rem;color:var(--tinta);text-decoration:none;letter-spacing:-.02em}
-.marca svg{width:26px;height:26px;flex:none}
+.marca{display:inline-flex;align-items:center;gap:10px;font-family:var(--titulo);font-weight:750;font-size:1.4rem;color:var(--tinta);text-decoration:none;letter-spacing:-.02em}
+.marca>svg{width:26px;height:26px;flex:none}
 nav{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
 nav form{margin:0}
 
@@ -152,3 +152,56 @@ fieldset.diseno{border:1.5px solid var(--borde);border-radius:12px;padding:6px 1
 fieldset.diseno legend{font-family:var(--titulo);font-weight:700;padding:0 6px}
 .colores{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 input[type=color]{width:100%;height:44px;padding:4px;border:1.5px solid var(--borde);border-radius:10px;background:#fff}
+
+/* logo: «QR» dibujado con módulos */
+.wordmark{white-space:nowrap}
+.qr-letras{display:inline-block;height:.72em;width:calc(.72em * 13 / 7);margin-left:.07em;vertical-align:baseline;fill:currentColor;overflow:visible}
+.qr-letras .acento{fill:var(--magenta)}
+.marca .qr-letras{fill:var(--violeta)}
+.pie-marca .qr-letras{margin-left:.05em}
+.pie-marca .qr-letras .acento{fill:#fff}
+
+/* acceso: todo en una sola vista */
+body.acceso-body{min-height:100vh;min-height:100dvh}
+.acceso-body .pie{margin-top:0}
+.acceso-body .pie-pixeles,.acceso-body .pie-marca,.acceso-body .pie-linea p{display:none}
+.acceso-body .pie-cuerpo{padding-top:12px;padding-bottom:12px}
+.acceso-body .pie-linea{margin-top:0;justify-content:flex-end}
+.acceso-body .pie nav{font-size:.875rem}
+main.acceso{flex:1;min-height:0}
+.arte{padding:clamp(20px,4vh,56px) clamp(24px,5vw,64px);gap:clamp(14px,3.5vh,40px)}
+.arte h2{font-size:clamp(1.8rem,min(4.4vw,6.2vh),3.8rem)}
+.arte p{font-size:clamp(.95rem,2vh,1.1rem);margin-top:clamp(8px,1.6vh,14px)}
+.lienzo{width:min(320px,62%,38vh)}
+.formulario-acceso{padding:clamp(20px,4vh,56px) clamp(16px,4vw,48px)}
+.formulario-acceso h1{font-size:clamp(1.8rem,4.4vh,2.3rem);margin-bottom:4px}
+.formulario-acceso label{margin-top:clamp(8px,1.6vh,14px)}
+.formulario-acceso .fila{margin-top:clamp(12px,2.2vh,18px)}
+.formulario-acceso .separador{margin:clamp(12px,2.2vh,20px) 0 clamp(8px,1.4vh,12px)}
+@media(max-width:860px){.lienzo{width:150px}}
+.marca .qr-letras{height:.74em;width:calc(.74em * 13 / 7)}
+.sociales{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sociales .social{margin-top:0;padding:11px 8px}
+.acceso-body header.sitio .ancho{padding-top:10px;padding-bottom:10px}
+.acceso-body .pie-cuerpo{padding-top:8px;padding-bottom:8px}
+@media(max-height:760px) and (min-width:861px){
+  .formulario-acceso .subtitulo{display:none}
+  .formulario-acceso input[type=text],.formulario-acceso input[type=email],.formulario-acceso input[type=password]{padding:8px 12px}
+  .formulario-acceso label{margin-top:8px}
+  .formulario-acceso h1{font-size:1.8rem}
+  .formulario-acceso{padding-top:14px;padding-bottom:14px}
+  .lienzo{width:min(280px,55%,34vh)}
+}
+@media(max-width:380px){.sociales{grid-template-columns:1fr}}
+.marca .qr-letras{height:.78em;width:calc(.78em * 13 / 7);fill:var(--tinta)}
+.marca .qr-letras rect{stroke:var(--tinta);stroke-width:.14}
+.marca .qr-letras .acento{fill:var(--magenta);stroke:var(--magenta)}
+.sociales .social{text-align:center}
+@media(max-width:520px){
+  header.sitio .ancho{flex-wrap:nowrap}
+  header.sitio nav>a[href="/planes"]{display:none}
+  .marca{font-size:1.2rem;gap:8px}
+  .marca>svg{width:22px;height:22px}
+  header.sitio nav{gap:10px;flex-wrap:nowrap}
+  header.sitio nav .boton{padding:8px 12px;font-size:.9rem}
+}

@@ -1,0 +1,5 @@
+{% macro marca(nombre) -%}
+{%- if nombre.endswith('QR') -%}
+<span class="wordmark">{{ nombre[:-2] }}<svg class="qr-letras" viewBox="0 0 13 7" role="img" aria-label="QR">{% for x, y, acento in QR_PIXELES %}<rect x="{{ x + 0.07 }}" y="{{ y + 0.07 }}" width=".86" height=".86" rx=".18"{% if acento %} class="acento"{% endif %}/>{% endfor %}</svg></span>
+{%- else -%}<span class="wordmark">{{ nombre }}</span>{%- endif -%}
+{%- endmacro %}

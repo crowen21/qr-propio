@@ -358,9 +358,9 @@ def test_microsoft_issuer_must_match_tenant(c, monkeypatch):
 
 def test_buttons_only_when_configured(c, monkeypatch):
     assert "Continuar con Microsoft" in c.get("/").text
-    assert "Continuar con Google" in c.get("/ingresar").text and "Continuar con Microsoft" in c.get("/registro").text
+    assert "/entrar/google" in c.get("/ingresar").text and "/entrar/microsoft" in c.get("/registro").text
     monkeypatch.setitem(oauth.PROVIDERS["google"], "secret", "")
-    assert "Continuar con Google" not in c.get("/ingresar").text
+    assert "/entrar/google" not in c.get("/ingresar").text
     assert c.get("/entrar/google", follow_redirects=False).status_code == 404
 
 

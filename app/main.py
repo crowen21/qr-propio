@@ -47,7 +47,26 @@ def _mosaico() -> dict:
     return {"n": n, "mods": mods, "ojos": ojos}
 
 
+GLIFOS = {
+    "Q": [".####.", "#....#", "#....#", "#....#", "#..#.#", "#...#.", ".###.#"],
+    "R": ["#####.", "#....#", "#....#", "#####.", "#..#..", "#...#.", "#....#"],
+}
+
+
+def _pixeles_qr() -> list[tuple[int, int, bool]]:
+    """Cuadritos (x, y, acento) para dibujar las letras «QR» del logo como módulos de un código QR."""
+    out = []
+    for i, letra in enumerate("QR"):
+        for y, fila in enumerate(GLIFOS[letra]):
+            for x, ch in enumerate(fila):
+                if ch == "#":
+                    acento = letra == "Q" and (x, y) in ((3, 4), (4, 5), (5, 6))  # la colita de la Q
+                    out.append((x + i * 7, y, acento))
+    return out
+
+
 templates.env.globals.update(
+    QR_PIXELES=_pixeles_qr(),
     mosaico=_mosaico(),
     KINDS=kinds.KINDS, STATIC=kinds.STATIC, proveedores=oauth.enabled, PRECIOS=config.PRICES,
     pagos_activos=flow.enabled, pesos=lambda n: f"${n:,.0f}".replace(",", "."),

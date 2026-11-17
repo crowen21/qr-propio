@@ -2,7 +2,7 @@
 {% block titulo %}Crear cuenta · {{ site }}{% endblock %}
 {% block formulario %}
 <h1>Crear cuenta</h1>
-<p class="suave chico">Usa tus datos reales: te enviaremos un enlace para confirmar el correo.</p>
+<p class="suave chico subtitulo">Usa tus datos reales: te enviaremos un enlace para confirmar el correo.</p>
 <form method="post" action="/registro">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   <label for="name">Nombre y apellido</label>
@@ -14,8 +14,8 @@
   <div class="fila"><button>Crear cuenta</button><a href="/ingresar">Ya tengo cuenta</a></div>
 </form>
 {% if proveedores() %}
-<p class="separador"><span>o</span></p>
-{% for k, nombre in proveedores() %}<a class="boton secundario ancho-total social" href="/entrar/{{ k }}">Continuar con {{ nombre }}</a>{% endfor %}
+<p class="separador"><span>o continúa con</span></p>
+<div class="sociales">{% for k, nombre in proveedores() %}<a class="boton secundario social" href="/entrar/{{ k }}">{{ nombre }}</a>{% endfor %}</div>
 {% endif %}
 <p class="suave chico">Al registrarte aceptas el uso de tus datos descrito en <a href="/privacidad">Privacidad y seguridad</a>.</p>
 {% endblock %}
