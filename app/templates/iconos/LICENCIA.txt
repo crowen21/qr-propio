@@ -1,1 +1,2 @@
-Íconos de Google y Microsoft: Font Awesome Free 7.3.1 (https://fontawesome.com), licencia CC BY 4.0.
+Íconos de Google y Microsoft: colección «SVG Logos» (https://github.com/gilbarbara/logos) vía @iconify-json/logos, licencia CC0 1.0.
+Cada marca pertenece a su dueño; se usan solo para identificar el ingreso con esa cuenta.
