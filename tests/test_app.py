@@ -637,3 +637,18 @@ def test_terms_required_and_legal_pages(c):
     p = c.get("/privacidad").text
     assert "contacto@facilqr.cl" in p and "Sebastián Castillo Lira" in p and "30 días" in p
     assert "Derecho a retracto" in c.get("/planes").text
+
+
+def test_wide_logo_uses_more_width_and_trims_margins():
+    import io as _io
+    from PIL import Image as _Image
+    from app import render
+    im = _Image.new("RGBA", (500, 200), (0, 0, 0, 0))
+    im.paste((20, 40, 150, 255), (50, 50, 450, 150))     # logo 4:1 con borde transparente
+    buf = _io.BytesIO(); im.save(buf, "PNG")
+    lay = render.layout("https://facilqr.cl/r/abc", logo=buf.getvalue())
+    n = len(__import__("segno").make("https://facilqr.cl/r/abc", error="h").matrix)
+    _, _, _, lw, lh, data = [e for e in lay["els"] if e[0] == "image"][0]
+    assert lw > 0.4 * n and abs(lw / lh - 4) < 0.05            # se recortó el margen y ocupa más ancho
+    assert lw * lh <= render.LOGO_AREA * n * n + 1e-6
+    assert _Image.open(_io.BytesIO(data)).size == (400, 100)

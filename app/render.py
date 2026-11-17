@@ -52,6 +52,27 @@ def _font(px: int):
         return ImageFont.load_default()
 
 
+LOGO_AREA, LOGO_MAX_W, LOGO_MAX_H = 0.085, 0.46, 0.30   # fracciones del lado del QR
+
+
+def _trim(logo: bytes) -> tuple[bytes, float]:
+    """Quita los bordes transparentes o blancos del logo para que el dibujo use todo su espacio."""
+    lg = Image.open(io.BytesIO(logo)).convert("RGBA")
+    px = lg.load()
+    w, h = lg.size
+    ink = lambda x, y: px[x, y][3] > 16 and min(px[x, y][:3]) < 245  # noqa: E731
+    cols = [x for x in range(w) if any(ink(x, y) for y in range(0, h, max(1, h // 200)))]
+    rows = [y for y in range(h) if any(ink(x, y) for x in range(0, w, max(1, w // 200)))]
+    if cols and rows:
+        x0, x1, y0, y1 = cols[0], cols[-1] + 1, rows[0], rows[-1] + 1
+        if (x1 - x0, y1 - y0) != (w, h):
+            lg = lg.crop((x0, y0, x1, y1))
+            buf = io.BytesIO()
+            lg.save(buf, "PNG")
+            logo = buf.getvalue()
+    return logo, lg.width / lg.height
+
+
 def layout(data: str, *, fg=DEFAULT_FG, bg=DEFAULT_BG, logo: bytes | None = None,
            frame: str = "", mark: str = "") -> dict:
     """Calcula el diseño en módulos. mark = texto de marca de agua (plan gratis)."""
@@ -68,10 +89,14 @@ def layout(data: str, *, fg=DEFAULT_FG, bg=DEFAULT_BG, logo: bytes | None = None
         els.append(("frame", pad / 2, pad / 2, w - pad, 0, fg))
     els.append(("modules", qr_x, qr_y, matrix, fg))
     if logo:
-        lg = Image.open(io.BytesIO(logo)).convert("RGBA")
-        side = n * 0.22
-        ratio = lg.width / lg.height
-        lw, lh = (side, side / ratio) if ratio >= 1 else (side * ratio, side)
+        logo, ratio = _trim(logo)
+        # Tamaño por superficie: un logo alargado gana ancho sin tapar más código que uno cuadrado.
+        # Con corrección de errores alta ("h") el lector recupera hasta ~30 % de datos dañados;
+        # el logo y su borde tapan como máximo ~12 %, dejando margen para impresiones imperfectas.
+        area = LOGO_AREA * n * n
+        lw, lh = (area * ratio) ** 0.5, (area / ratio) ** 0.5
+        k = min(1.0, LOGO_MAX_W * n / lw, LOGO_MAX_H * n / lh)
+        lw, lh = lw * k, lh * k
         box = 1.0
         bx, by = qr_x + (n - lw) / 2 - box, qr_y + (n - lh) / 2 - box
         els.append(("rect", bx, by, lw + 2 * box, lh + 2 * box, bg))
