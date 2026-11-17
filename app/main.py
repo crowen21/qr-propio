@@ -161,6 +161,7 @@ def flash(request: Request, text: str, kind: str = "ok"):
 def render(request: Request, name: str, status: int = 200, **ctx):
     ctx.setdefault("user", current_user(request))
     ctx.update(csrf=csrf_token(request), site=config.SITE_NAME, base_url=config.BASE_URL,
+               responsable=config.RESPONSABLE, contacto=config.CONTACTO, legal_fecha=config.LEGAL_FECHA,
                flash=request.session.pop("flash", None))
     return templates.TemplateResponse(request, name, ctx, status_code=status)
 
@@ -215,6 +216,11 @@ def privacy(request: Request):
     return render(request, "privacidad.html")
 
 
+@app.get("/terminos")
+def terms(request: Request):
+    return render(request, "terminos.html")
+
+
 @app.get("/salud")
 def health():
     return {"ok": True}
@@ -227,7 +233,7 @@ def register_form(request: Request):
 
 @app.post("/registro")
 def register(request: Request, name: str = Form(""), email: str = Form(""),
-             password: str = Form(""), csrf: str = Form("")):
+             password: str = Form(""), acepto: str = Form(""), csrf: str = Form("")):
     check_csrf(request, csrf)
     rate_limit(request, "registro")
     name, email = " ".join(name.split()), email.strip().lower()
@@ -238,6 +244,8 @@ def register(request: Request, name: str = Form(""), email: str = Form(""),
         error = "El correo no tiene un formato válido."
     elif not 10 <= len(password) <= 200:
         error = "La clave debe tener al menos 10 caracteres."
+    elif not acepto:
+        error = "Para crear la cuenta debes aceptar los Términos de uso y la Política de privacidad."
     if error:
         return render(request, "registro.html", status=400, error=error,
                       form={"name": name, "email": email})
@@ -245,8 +253,8 @@ def register(request: Request, name: str = Form(""), email: str = Form(""),
         u = c.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
         if u is None:
             cur = c.execute(
-                "INSERT INTO users (name,email,pw_hash,created_at) VALUES (?,?,?,?)",
-                (name, email, hash_password(password), now()))
+                "INSERT INTO users (name,email,pw_hash,created_at,terms_at) VALUES (?,?,?,?,?)",
+                (name, email, hash_password(password), now(), now()))
             send_verification(c, cur.lastrowid, email, name)
         elif not u["verified"]:
             send_verification(c, u["id"], email, u["name"])
@@ -344,8 +352,8 @@ def oauth_return(request: Request, provider: str, code: str = "", state: str = "
                     c.execute("DELETE FROM tokens WHERE user_id=?", (existing["id"],))
                 uid = existing["id"]
             else:
-                uid = c.execute("INSERT INTO users (name,email,pw_hash,verified,created_at) VALUES (?,?,?,?,?)",
-                                (name, email, NO_PASSWORD, int(info["email_trusted"]), now())).lastrowid
+                uid = c.execute("INSERT INTO users (name,email,pw_hash,verified,created_at,terms_at) VALUES (?,?,?,?,?,?)",
+                                (name, email, NO_PASSWORD, int(info["email_trusted"]), now(), now())).lastrowid
             c.execute("INSERT INTO identities VALUES (?,?,?)", (provider, info["subject"], uid))
             user = c.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
         if not user["verified"]:

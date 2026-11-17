@@ -87,6 +87,6 @@ def init():
             if col not in cols:  # bases creadas con una versión anterior
                 c.execute(f"ALTER TABLE qrs ADD COLUMN {col} {ddl}")
         ucols = {r["name"] for r in c.execute("PRAGMA table_info(users)")}
-        for col, ddl in (("plan_until", "INTEGER"), ("reminded_at", "INTEGER")):
+        for col, ddl in (("plan_until", "INTEGER"), ("reminded_at", "INTEGER"), ("terms_at", "INTEGER")):
             if col not in ucols:
                 c.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")

@@ -10,7 +10,11 @@ DB_PATH = DATA_DIR / "qr.db"
 
 # Dirección pública del sitio. Los QR se generan con esta dirección: cámbiala al dominio definitivo ANTES de imprimir.
 BASE_URL = os.environ.get("QR_BASE_URL", "http://localhost:8000").rstrip("/")
-SITE_NAME = os.environ.get("QR_SITE_NAME", "QR Propio")
+SITE_NAME = os.environ.get("QR_SITE_NAME", "FacilQR")
+# Responsable del servicio y de los datos personales (aparece en los Términos y la Política de privacidad).
+RESPONSABLE = os.environ.get("QR_RESPONSABLE", "Sebastián Castillo Lira")
+CONTACTO = os.environ.get("QR_CONTACTO", "contacto@facilqr.cl")
+LEGAL_FECHA = "17 de noviembre de 2026"  # fecha de la última versión de los textos legales
 
 # Planes. Precios en pesos chilenos, IVA incluido.
 FREE_QRS = int(os.environ.get("QR_FREE_QRS", "1"))        # códigos sin pagar por cuenta

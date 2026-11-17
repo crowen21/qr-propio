@@ -1,15 +1,65 @@
 {% extends "base.html" %}
-{% block titulo %}Privacidad y seguridad · {{ site }}{% endblock %}
+{% block titulo %}Política de privacidad · {{ site }}{% endblock %}
 {% block cuerpo %}
-<div class="carta">
-<h1>Privacidad y seguridad</h1>
-<h2>Qué datos guardamos</h2>
-<p>Tu nombre, tu correo y tu clave (cifrada de forma irreversible, nadie puede leerla). De cada código guardamos el nombre, el destino y la fecha y hora de cada escaneo. No registramos quién escanea ni desde dónde.</p>
-<h2>Para qué</h2>
-<p>Solo para operar tu cuenta y tus códigos. No vendemos ni compartimos tus datos.</p>
-<h2>Tus derechos</h2>
-<p>Puedes eliminar tu cuenta desde tu panel en cualquier momento: se borran tus datos y todos tus códigos.</p>
-<h2>Revisión de enlaces</h2>
-<p>Cada destino se compara con listas de sitios maliciosos al crearlo y luego a diario. Ninguna protección es perfecta: un sitio dañino reciente puede no estar aún en las listas, y un sitio legítimo puede ser bloqueado por error.</p>
-</div>
+<article class="carta legal">
+<h1>Política de privacidad</h1>
+<p class="suave">Última actualización: {{ legal_fecha }}. Ver también los <a href="/terminos">Términos de uso</a>.</p>
+
+<h2>1. Responsable</h2>
+<p>El responsable del tratamiento de tus datos personales es {{ responsable }}, quien opera {{ site }} desde Santiago, Chile. Para cualquier consulta o solicitud sobre tus datos escribe a <a href="mailto:{{ contacto }}">{{ contacto }}</a>.</p>
+
+<h2>2. Qué datos tratamos</h2>
+<ul>
+  <li><strong>De tu cuenta:</strong> nombre, correo y clave. La clave se guarda cifrada de forma irreversible; nadie puede leerla, ni siquiera nosotros. Si entras con Google o Microsoft, recibimos de ellos tu nombre, tu correo y un identificador de cuenta; nunca tu clave.</li>
+  <li><strong>De tus códigos:</strong> nombre, tipo, destino, contenido y diseño (colores, texto del marco y logo).</li>
+  <li><strong>De los escaneos:</strong> solo la fecha y la hora de cada escaneo. No guardamos quién escanea, su dirección IP, su ubicación ni su dispositivo.</li>
+  <li><strong>De los pagos:</strong> producto, monto, fecha y número de orden. Los datos de tu tarjeta los procesa Flow y nunca llegan a {{ site }}.</li>
+  <li><strong>Registros técnicos:</strong> el servidor registra las solicitudes que recibe, incluida la dirección IP de origen, para proteger el servicio contra abusos y ataques. Estos registros se borran solos en un máximo de 30 días.</li>
+</ul>
+
+<h2>3. Para qué los usamos y con qué fundamento</h2>
+<ul>
+  <li>Crear y mantener tu cuenta y tus códigos, y enviarte los correos del servicio (confirmación de cuenta, recuperación de clave, tus códigos, pagos y avisos de vencimiento). Fundamento: el contrato que aceptas al registrarte.</li>
+  <li>Mostrarte las estadísticas de tus códigos. Fundamento: el contrato.</li>
+  <li>Proteger el servicio y a quienes escanean: revisar enlaces, prevenir fraudes y limitar intentos de acceso. Fundamento: nuestro interés legítimo en un servicio seguro.</li>
+  <li>Cumplir obligaciones legales y tributarias asociadas a los pagos. Fundamento: la ley.</li>
+</ul>
+<p>No vendemos ni arrendamos tus datos, no los usamos para publicidad y no te enviaremos correos promocionales sin tu consentimiento.</p>
+
+<h2>4. Con quién los compartimos</h2>
+<p>Solo con proveedores que necesitamos para operar, que tratan los datos por encargo nuestro y bajo sus propias medidas de seguridad:</p>
+<ul>
+  <li><strong>Amazon Web Services:</strong> alojamiento del sitio y de la base de datos, y envío de correos. Sus servidores están en Estados Unidos, por lo que tus datos se transfieren a ese país.</li>
+  <li><strong>Flow:</strong> procesamiento de pagos en Chile.</li>
+  <li><strong>Google y Microsoft:</strong> solo si eliges entrar con ellos.</li>
+</ul>
+<p>También podemos entregar datos cuando lo exija una autoridad competente conforme a la ley.</p>
+
+<h2>5. Cuánto tiempo los guardamos</h2>
+<ul>
+  <li>Datos de tu cuenta y tus códigos: mientras tu cuenta exista. Al eliminarla se borran de inmediato, salvo los respaldos, que se borran solos en 14 días.</li>
+  <li>Cuentas que nunca confirmaron su correo: se borran a los 7 días.</li>
+  <li>Registro de escaneos: 400 días.</li>
+  <li>Registros de pagos: por el plazo que exige la ley tributaria, aunque elimines tu cuenta.</li>
+  <li>Registros técnicos con dirección IP: hasta 30 días.</li>
+</ul>
+
+<h2>6. Tus derechos</h2>
+<p>Puedes pedir acceso a tus datos, su rectificación, su supresión, oponerte a su tratamiento, pedir su bloqueo temporal o recibirlos en un formato que puedas llevar a otro servicio. Escríbenos a <a href="mailto:{{ contacto }}">{{ contacto }}</a> desde el correo de tu cuenta y te responderemos dentro de 30 días corridos. Puedes eliminar tu cuenta y todos tus datos tú mismo desde tu panel. Si no quedas conforme con nuestra respuesta, puedes reclamar ante la autoridad de protección de datos personales que corresponda según la ley chilena.</p>
+
+<h2>7. Seguridad</h2>
+<p>El sitio funciona siempre con conexión cifrada (HTTPS). Las claves se guardan con un cifrado irreversible, las sesiones están protegidas contra falsificación, limitamos los intentos de ingreso y el servidor solo acepta conexiones administrativas desde orígenes autorizados. Ningún sistema es invulnerable: si ocurriera un incidente que afecte tus datos, te avisaremos y lo informaremos a la autoridad en los casos que exige la ley.</p>
+
+<h2>8. Revisión de enlaces</h2>
+<p>Para proteger a quienes escanean, comparamos los destinos de los códigos con listas públicas de sitios maliciosos y de phishing. Para eso solo usamos el enlace de destino; no enviamos tus datos personales a terceros. Esta revisión reduce el riesgo pero no lo elimina: un sitio malicioso nuevo puede no estar aún en las listas. Más detalle en la sección 5 de los <a href="/terminos">Términos de uso</a>.</p>
+
+<h2>9. Cookies</h2>
+<p>Usamos una sola cookie, necesaria para mantener tu sesión iniciada. No usamos cookies de seguimiento, analítica de terceros ni publicidad.</p>
+
+<h2>10. Menores de edad</h2>
+<p>{{ site }} no está dirigido a menores de 14 años y no recopilamos sus datos a sabiendas. Si crees que un menor nos entregó sus datos, escríbenos y los eliminaremos.</p>
+
+<h2>11. Cambios a esta política</h2>
+<p>Si cambiamos esta política de forma importante, te avisaremos por correo antes de que el cambio entre en vigencia.</p>
+</article>
 {% endblock %}

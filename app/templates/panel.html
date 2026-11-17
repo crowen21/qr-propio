@@ -48,6 +48,7 @@ Tus códigos nunca se apagan, aunque dejes de pagar. <a href="/planes">Ver plane
 <p class="suave">Todavía no tienes códigos. Crea el primero arriba.</p>
 {% endfor %}
 
+{% if pagos_activos() %}<p class="suave chico">Al comprar, el plan se activa de inmediato y no aplica el derecho a retracto una vez activado. <a href="/terminos#retracto">Más información</a>.</p>{% endif %}
 {% if not pro %}
 <div class="carta oferta"><h2>Dale tu marca a tus códigos</h2>
 <p class="suave">Logo al centro, tus colores, un marco con texto como «Escanea para ver la carta», archivos PDF y SVG para imprenta y sin la marca de {{ site }}.</p>

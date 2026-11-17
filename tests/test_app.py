@@ -20,7 +20,7 @@ def last_link():
 
 
 def signup(c, email="ana@example.com", pw="clave-segura-123"):
-    r = c.post("/registro", data={"name": "Ana Pérez", "email": email, "password": pw, "csrf": csrf(c, "/registro")})
+    r = c.post("/registro", data={"name": "Ana Pérez", "email": email, "password": pw, "acepto": "1", "csrf": csrf(c, "/registro")})
     assert r.status_code == 200 and "Revisa tu correo" in r.text
     assert c.get(last_link(), follow_redirects=False).status_code == 303
     r = c.post("/ingresar", data={"email": email, "password": pw, "csrf": csrf(c)}, follow_redirects=False)
@@ -65,7 +65,7 @@ def decode(png):
 
 
 def test_login_requires_verification(c):
-    c.post("/registro", data={"name": "Ana Pérez", "email": "a@example.com", "password": "clave-segura-123", "csrf": csrf(c, "/registro")})
+    c.post("/registro", data={"name": "Ana Pérez", "email": "a@example.com", "password": "clave-segura-123", "acepto": "1", "csrf": csrf(c, "/registro")})
     r = c.post("/ingresar", data={"email": "a@example.com", "password": "clave-segura-123", "csrf": csrf(c)})
     assert r.status_code == 403 and "confirmar" in r.text
     assert c.get("/panel", follow_redirects=False).headers["location"] == "/ingresar"
@@ -84,7 +84,7 @@ def test_weak_password_rejected(c):
 
 def test_duplicate_email_not_revealed(c):
     signup(c); c.cookies.clear()
-    r = c.post("/registro", data={"name": "Otro", "email": "ana@example.com", "password": "otra-clave-larga", "csrf": csrf(c, "/registro")})
+    r = c.post("/registro", data={"name": "Otro", "email": "ana@example.com", "password": "otra-clave-larga", "acepto": "1", "csrf": csrf(c, "/registro")})
     assert "Revisa tu correo" in r.text and "Ya tienes una cuenta" in mailer.outbox[-1][1]
 
 
@@ -315,7 +315,7 @@ def test_google_links_existing_account(c, monkeypatch):
 
 def test_google_takes_over_unverified_squatter(c, monkeypatch):
     # un tercero registró el correo de la víctima con su propia clave, sin confirmarlo
-    c.post("/registro", data={"name": "Intruso", "email": "ana@example.com", "password": "clave-del-intruso", "csrf": csrf(c, "/registro")})
+    c.post("/registro", data={"name": "Intruso", "email": "ana@example.com", "password": "clave-del-intruso", "acepto": "1", "csrf": csrf(c, "/registro")})
     oauth_login(c, "google", monkeypatch, email="ana@example.com")
     other = TestClient(app)
     assert other.post("/ingresar", data={"email": "ana@example.com", "password": "clave-del-intruso", "csrf": csrf(other)}).status_code == 401
@@ -576,7 +576,7 @@ def test_html_email_has_brand_and_button(c, monkeypatch):
     FakeSMTP.sent.clear()
     monkeypatch.setattr(mailer.config, "SMTP_HOST", "smtp.test"); monkeypatch.setattr(mailer.config, "SMTP_FROM", "qr@test.cl")
     monkeypatch.setattr(mailer.smtplib, "SMTP", FakeSMTP)
-    c.post("/registro", data={"name": "Ana <b>Pérez</b>", "email": "ana@example.com", "password": "clave-segura-123", "csrf": csrf(c, "/registro")})
+    c.post("/registro", data={"name": "Ana <b>Pérez</b>", "email": "ana@example.com", "password": "clave-segura-123", "acepto": "1", "csrf": csrf(c, "/registro")})
     msg = FakeSMTP.sent[-1]
     html = msg.get_body(("html",)).get_content(); text = msg.get_body(("plain",)).get_content()
     assert "/static/correo/logo.png" in html and "/static/correo/pie.png" in html and "Confirmar mi cuenta" in html
@@ -624,3 +624,16 @@ def test_vcard_website_checked(c):
         conn.execute("INSERT INTO blocklist VALUES ('phish.example')")
     r = c.post("/qr/nuevo", data={"kind": "vcard", "name": "T", "full_name": "Ana", "website": "https://login.phish.example/x", "csrf": csrf(c, "/qr/nuevo")})
     assert r.status_code == 400 and "Sitio web de la tarjeta" in r.text
+
+
+def test_terms_required_and_legal_pages(c):
+    r = c.post("/registro", data={"name": "Ana Pérez", "email": "a@example.com", "password": "clave-segura-123", "csrf": csrf(c, "/registro")})
+    assert r.status_code == 400 and "debes aceptar" in r.text
+    signup(c)
+    with db.connect() as conn:
+        assert conn.execute("SELECT terms_at FROM users").fetchone()[0]
+    t = c.get("/terminos").text
+    assert "no lo elimina" in t and "no aplica el derecho a retracto" in t and "irrenunciables" in t
+    p = c.get("/privacidad").text
+    assert "contacto@facilqr.cl" in p and "Sebastián Castillo Lira" in p and "30 días" in p
+    assert "Derecho a retracto" in c.get("/planes").text

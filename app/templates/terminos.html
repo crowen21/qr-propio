@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block titulo %}Términos de uso · {{ site }}{% endblock %}
+{% block cuerpo %}
+<article class="carta legal">
+<h1>Términos de uso</h1>
+<p class="suave">Última actualización: {{ legal_fecha }}.</p>
+
+<h2>1. Quiénes somos</h2>
+<p>{{ site }} (en adelante, «{{ site }}» o «nosotros») es un servicio para crear y administrar códigos QR, operado por {{ responsable }}, con domicilio en Santiago, Chile. Puedes escribirnos a <a href="mailto:{{ contacto }}">{{ contacto }}</a>.</p>
+<p>Al crear una cuenta o usar el servicio aceptas estos términos y la <a href="/privacidad">Política de privacidad</a>. Puedes guardarlos o imprimirlos desde esta página en cualquier momento. Si no estás de acuerdo con ellos, no uses el servicio.</p>
+
+<h2>2. Quién puede usarlo</h2>
+<p>Debes ser mayor de 18 años o contar con autorización de tu representante legal, y entregar datos reales al registrarte. Eres responsable de mantener segura tu clave y de lo que se haga con tu cuenta. Si crees que alguien entró a tu cuenta, cambia tu clave y escríbenos.</p>
+
+<h2>3. Qué ofrece el servicio</h2>
+<p>{{ site }} genera códigos QR que pasan por nuestro sitio y llevan al destino que tú elijas (una página web, WhatsApp, Instagram, una ubicación, entre otros), o que muestran una página con tu contenido. Puedes cambiar el destino sin volver a imprimir el código. Los códigos de WiFi guardan los datos dentro del propio código y no pasan por nuestro sitio.</p>
+
+<h2>4. Tú eres responsable de tus códigos</h2>
+<p>Tú decides a dónde lleva cada código y qué contenido muestra, y respondes por ello. Al usar {{ site }} te comprometes a no crear códigos que:</p>
+<ul>
+  <li>lleven a sitios de phishing, malware, fraudes, estafas o suplantación de personas, marcas o instituciones;</li>
+  <li>difundan contenido ilegal, que incite a la violencia o al odio, o que explote o ponga en riesgo a menores de edad;</li>
+  <li>infrinjan derechos de autor, marcas u otros derechos de terceros;</li>
+  <li>se usen para enviar publicidad no solicitada o para engañar a quien escanea sobre su verdadero destino.</li>
+</ul>
+
+<h2>5. Revisión de seguridad de los enlaces: lo que hacemos y sus límites</h2>
+<p>Para proteger a quienes escanean, revisamos los enlaces de destino al crearlos y al editarlos, y los volvemos a revisar todos los días. Los comparamos con listas públicas de sitios reportados por distribuir malware o por phishing, y rechazamos enlaces con formas usadas en fraudes, como los que incluyen usuario y clave o apuntan a redes internas.</p>
+<p><strong>Esta revisión reduce el riesgo, pero no lo elimina.</strong> Las listas dependen de que alguien haya detectado y reportado el sitio, por lo que un sitio malicioso recién creado, o uno que cambia su contenido después de nuestra revisión, puede no estar todavía en ellas. Un enlace que pasa nuestra revisión no queda garantizado como seguro, y {{ site }} no controla ni revisa el contenido de los sitios de terceros a los que llevan los códigos.</p>
+<p>A quien escanea un código le recomendamos revisar la dirección que se abre antes de ingresar claves, datos de tarjetas u otra información sensible.</p>
+
+<h2>6. Bloqueo y suspensión</h2>
+<p>Podemos bloquear un código, impidiendo que redirija y mostrando una advertencia, cuando su destino aparezca en listas de sitios peligrosos o tengamos indicios razonables de que infringe estos términos. También podemos suspender cuentas que los infrinjan de forma grave o repetida, o cuando una autoridad competente lo ordene. Cuando sea posible te avisaremos por correo, con el motivo, y podrás corregir el destino o escribirnos si crees que fue un error.</p>
+
+<h2>7. Nuestro compromiso: tus códigos no se apagan</h2>
+<p>Tus códigos siguen funcionando aunque no pagues un plan o dejes de entrar a tu cuenta. Este compromiso dura mientras tu cuenta exista y el código cumpla estos términos. Un código deja de funcionar si tú lo eliminas o lo pausas, si eliminas tu cuenta, o si se bloquea según la sección 6.</p>
+<p>Hacemos esfuerzos razonables para que el servicio esté siempre disponible, pero pueden ocurrir interrupciones por mantenimiento, fallas técnicas o causas fuera de nuestro control. Si alguna vez {{ site }} dejara de operar, te avisaremos por correo con al menos 90 días de anticipación y te daremos una forma de descargar los destinos de tus códigos para que puedas reemplazarlos.</p>
+
+<h2>8. Planes, precios y pagos</h2>
+<p>El plan gratis incluye 1 código. Los planes de pago (QR permanente, Pro mensual y Pro anual) y sus precios se publican en la <a href="/planes">página de planes</a>, en pesos chilenos con IVA incluido. Los pagos se procesan a través de Flow; {{ site }} no recibe ni guarda los datos de tu tarjeta.</p>
+<p>El plan Pro <strong>no se renueva automáticamente</strong>: te avisamos por correo antes de que venza. Si no lo renuevas, tus códigos siguen funcionando, pero ya no podrás editar los que superen el plan gratis ni cambiar su diseño. El QR permanente es un pago único que mantiene para siempre el diseño y las funciones de pago de ese código.</p>
+<p id="retracto"><strong>Derecho a retracto:</strong> los planes se activan apenas se confirma el pago, por lo que se consideran servicios ya iniciados y <strong>no aplica el derecho a retracto</strong> una vez activados, conforme a la Ley N° 19.496 y su reglamento. Esto se informa antes de cada pago. Si un pago se cobró pero el plan no se activó, o si hubo un cobro por error, escríbenos y lo resolveremos o devolveremos el dinero.</p>
+
+<h2>9. Responsabilidad</h2>
+<p>En la medida en que lo permita la ley, {{ site }} no responde por el contenido de los sitios de terceros a los que llevan los códigos, por el uso que el dueño de un código le dé, ni por perjuicios derivados de sitios maliciosos que nuestras revisiones no hayan detectado, según lo descrito en la sección 5. Tampoco respondemos por interrupciones causadas por fuerza mayor o por servicios de terceros fuera de nuestro control.</p>
+<p>Nada de lo dispuesto en estos términos limita los derechos que la Ley N° 19.496 sobre Protección de los Derechos de los Consumidores reconoce como irrenunciables.</p>
+
+<h2>10. Propiedad intelectual</h2>
+<p>Tú conservas todos tus derechos sobre los logos, textos y contenidos que subas, y nos autorizas a usarlos solo para generar y mostrar tus códigos. Declaras que tienes derecho a usarlos. La marca {{ site }}, el diseño del sitio y su software nos pertenecen.</p>
+
+<h2>11. Cambios a estos términos</h2>
+<p>Podemos actualizar estos términos para reflejar cambios en el servicio o en la ley. Si el cambio es importante, te avisaremos por correo con al menos 15 días de anticipación. Los cambios no afectan los pagos ya realizados. Si no estás de acuerdo, puedes eliminar tu cuenta en cualquier momento.</p>
+
+<h2>12. Ley aplicable y reclamos</h2>
+<p>Estos términos se rigen por las leyes de Chile. Si tienes un reclamo, escríbenos primero a <a href="mailto:{{ contacto }}">{{ contacto }}</a>. Como consumidor, también puedes acudir al SERNAC o a los tribunales competentes de tu domicilio.</p>
+</article>
+{% endblock %}

@@ -11,11 +11,13 @@
   <input id="email" name="email" type="email" value="{{ form.email }}" required maxlength="254" autocomplete="email">
   <label for="password">Clave (mínimo 10 caracteres)</label>
   <input id="password" name="password" type="password" required minlength="10" maxlength="200" autocomplete="new-password">
+  <label class="acepto"><input type="checkbox" name="acepto" value="1" required> Acepto los <a href="/terminos" target="_blank">Términos de uso</a> y la <a href="/privacidad" target="_blank">Política de privacidad</a></label>
   <div class="fila"><button>Crear cuenta</button><a href="/ingresar">Ya tengo cuenta</a></div>
 </form>
 {% if proveedores() %}
 <p class="separador"><span>o continúa con</span></p>
 <div class="sociales">{% for k, nombre in proveedores() %}<a class="boton secundario social" href="/entrar/{{ k }}">{% include "iconos/" ~ k ~ ".svg" %}{{ nombre }}</a>{% endfor %}</div>
+<p class="suave chico legal-nota">Al continuar con Google o Microsoft aceptas los <a href="/terminos">Términos</a> y la <a href="/privacidad">Política de privacidad</a>.</p>
 {% endif %}
-<p class="suave chico">Al registrarte aceptas el uso de tus datos descrito en <a href="/privacidad">Privacidad y seguridad</a>.</p>
+
 {% endblock %}

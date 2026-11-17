@@ -102,6 +102,11 @@ WantedBy=timers.target
 UNIT
 done
 
+# Los registros técnicos (con direcciones IP) se guardan como máximo 30 días, como dice la Política de privacidad.
+mkdir -p /etc/systemd/journald.conf.d
+printf '[Journal]\nMaxRetentionSec=30day\n' > /etc/systemd/journald.conf.d/qr-retencion.conf
+systemctl restart systemd-journald
+
 cat > /etc/caddy/Caddyfile <<CADDY
 ${DOMINIO:-:80} {
     encode gzip

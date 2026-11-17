@@ -254,3 +254,13 @@ main.inicio{padding:0}
   .portada-arte .lienzo{position:relative;right:auto;bottom:auto;width:min(34%,170px);margin:0;opacity:1}
   .portada-acciones .boton{flex:1 1 220px;text-align:center;justify-content:center}
 }
+
+/* textos legales */
+.legal{max-width:760px}
+.legal h2{font-size:1.1rem;margin:26px 0 8px}
+.legal p,.legal li{line-height:1.65}
+.legal ul{padding-left:20px}
+label.acepto{display:flex;gap:8px;align-items:flex-start;font-weight:500;font-size:.875rem;margin-top:14px}
+label.acepto input{margin-top:3px}
+.legal-nota{margin:10px 0 0}
+.retracto{background:#f1eeff;color:var(--tinta)}
