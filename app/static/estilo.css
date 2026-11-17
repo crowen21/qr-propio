@@ -225,3 +225,32 @@ main.acceso{flex:1;min-height:0}
 .tabla-datos th,.tabla-datos td{padding:3px 14px 3px 0;text-align:left;border-bottom:1px solid var(--borde)}
 .social,a.boton[href^="/entrar/"]{display:inline-flex;align-items:center;justify-content:center;gap:8px}
 .icono{width:1em;height:1em;flex:none}
+
+/* página principal */
+main.inicio{padding:0}
+.portada{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(24px,5vw,64px);align-items:center;padding-top:clamp(32px,7vh,80px);padding-bottom:clamp(32px,6vh,64px);max-width:1100px}
+.portada h1{font-size:clamp(2.3rem,5.2vw,4.2rem);line-height:.98;font-weight:800;letter-spacing:-.035em;margin:0 0 18px;max-width:12ch}
+.portada-texto>p:first-of-type{font-size:clamp(1.05rem,1.6vw,1.2rem);max-width:40ch;margin:0 0 26px;color:var(--suave)}
+.portada-acciones{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.boton.grande{padding:14px 22px;font-size:1.05rem}
+.con-icono{display:inline-flex;align-items:center;gap:10px}
+.portada-arte{background:var(--violeta);border-radius:28px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.portada-arte .lienzo{width:62%;margin:0}
+.beneficios{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(16px,3vw,40px);max-width:1100px;padding-bottom:24px;border-top:1px solid var(--borde);padding-top:32px}
+.beneficios h2{font-size:1.15rem;margin:0 0 6px}
+.beneficios h2::before{content:"";display:inline-block;width:.6em;height:.6em;border-radius:.15em;background:var(--magenta);margin-right:.5em;vertical-align:.05em}
+.beneficios div:nth-child(2) h2::before{background:var(--mango)}
+.beneficios div:nth-child(3) h2::before{background:var(--agua)}
+.beneficios p{margin:0}
+@media(max-width:820px){
+  .portada{grid-template-columns:1fr}
+  .portada-arte{max-width:360px;width:100%;justify-self:center;order:-1;aspect-ratio:4/3}
+  .portada-arte .lienzo{width:46%}
+  .beneficios{grid-template-columns:1fr;gap:18px}
+}
+@media(max-width:820px){
+  .portada{padding-top:20px}
+  .portada-arte{aspect-ratio:2/1;max-width:none}
+  .portada-arte .lienzo{position:relative;right:auto;bottom:auto;width:min(34%,170px);margin:0;opacity:1}
+  .portada-acciones .boton{flex:1 1 220px;text-align:center;justify-content:center}
+}

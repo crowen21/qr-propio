@@ -1,14 +1,30 @@
 {% extends "base.html" %}
-{% block cuerpo %}
-<section class="heroe">
-  <h1>Códigos QR que no caducan.</h1>
-  <p class="suave">Crea tu cuenta, genera tus códigos y cámbiales el destino cuando quieras sin volver a imprimirlos. Cada enlace se revisa para que tu QR nunca lleve a un sitio peligroso.</p>
-  <div class="fila"><a class="boton" href="/registro">Crear cuenta gratis</a><a href="/planes">Ver planes</a></div>
-  {% if proveedores() %}<div class="fila">{% for k, nombre in proveedores() %}<a class="boton secundario" href="/entrar/{{ k }}">{% include "iconos/" ~ k ~ ".svg" %}Continuar con {{ nombre }}</a>{% endfor %}</div>{% endif %}
+{% block principal %}
+<main class="inicio">
+<section class="ancho portada">
+  <div class="portada-texto">
+    <h1>Tus códigos QR nunca se apagan.</h1>
+    <p>Imprime una vez y cambia a dónde lleva tu QR cuando quieras: tu carta, tu WhatsApp, tu Instagram o tu WiFi.</p>
+    <div class="portada-acciones">
+      <a class="boton grande" href="/registro">Crear mi QR gratis</a>
+      {% if 'google' in dict(proveedores()) %}<a class="boton secundario grande con-icono" href="/entrar/google">{% include "iconos/google.svg" %}Entrar con Google</a>{% endif %}
+    </div>
+    <p class="suave chico">Gratis para siempre con 1 código. Sin tarjeta.</p>
+  </div>
+  <div class="portada-arte" aria-hidden="true">
+    <div class="lienzo">
+      <svg class="mosaico" viewBox="-3 -3 {{ mosaico.n + 6 }} {{ mosaico.n + 6 }}">
+        {% for x, y, d in mosaico.mods %}<rect class="m d{{ d }}" x="{{ x + 0.07 }}" y="{{ y + 0.07 }}" width=".86" height=".86" rx=".22"/>{% endfor %}
+        {% for x, y in mosaico.ojos %}<g class="ojo"><rect class="aro" x="{{ x + 0.5 }}" y="{{ y + 0.5 }}" width="6" height="6" rx="1.6"/><rect class="pupila" x="{{ x + 2 }}" y="{{ y + 2 }}" width="3" height="3" rx=".9"/></g>{% endfor %}
+      </svg>
+      <span class="suelto s1"></span><span class="suelto s2"></span><span class="suelto s3"></span><span class="suelto s5"></span>
+    </div>
+  </div>
 </section>
-<div class="tres">
-  <div class="carta"><h2>Sin vencimiento</h2><p class="suave">Tus códigos siguen funcionando mientras tu cuenta exista. Sin periodos de prueba que los apaguen.</p></div>
-  <div class="carta"><h2>Editables</h2><p class="suave">Si cambia tu página, cambias el destino desde tu panel. El QR impreso sigue siendo el mismo.</p></div>
-  <div class="carta"><h2>Enlaces revisados</h2><p class="suave">Bloqueamos destinos de phishing y malware al crearlos y los volvemos a revisar todos los días.</p></div>
-</div>
+<section class="ancho beneficios">
+  <div><h2>No vencen</h2><p class="suave">Aunque dejes de pagar o no entres en meses, tu QR impreso sigue funcionando.</p></div>
+  <div><h2>Se editan</h2><p class="suave">Cambia el destino desde tu panel. El código impreso es el mismo.</p></div>
+  <div><h2>Revisados</h2><p class="suave">Cada enlace se compara a diario con listas de sitios peligrosos.</p></div>
+</section>
+</main>
 {% endblock %}
