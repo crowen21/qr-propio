@@ -223,3 +223,5 @@ main.acceso{flex:1;min-height:0}
 .grafico .eje{font-size:11px;fill:var(--suave);font-family:"Figtree",sans-serif}
 .tabla-datos{border-collapse:collapse;font-size:.875rem;margin-top:6px}
 .tabla-datos th,.tabla-datos td{padding:3px 14px 3px 0;text-align:left;border-bottom:1px solid var(--borde)}
+.social,a.boton[href^="/entrar/"]{display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.icono{width:1.05em;height:1.05em;flex:none}
