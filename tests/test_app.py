@@ -570,3 +570,31 @@ def test_pro_expiry_reminder_once(c):
     signup(c); set_pro(until=int(time.time()) + 2 * 86400)
     assert maintenance.remind_expiring() == 1 and "vence" in mailer.outbox[-1][1]
     assert maintenance.remind_expiring() == 0
+
+
+def test_html_email_has_brand_and_button(c, monkeypatch):
+    FakeSMTP.sent.clear()
+    monkeypatch.setattr(mailer.config, "SMTP_HOST", "smtp.test"); monkeypatch.setattr(mailer.config, "SMTP_FROM", "qr@test.cl")
+    monkeypatch.setattr(mailer.smtplib, "SMTP", FakeSMTP)
+    c.post("/registro", data={"name": "Ana <b>Pérez</b>", "email": "ana@example.com", "password": "clave-segura-123", "csrf": csrf(c, "/registro")})
+    msg = FakeSMTP.sent[-1]
+    html = msg.get_body(("html",)).get_content(); text = msg.get_body(("plain",)).get_content()
+    assert "/static/correo/logo.png" in html and "/static/correo/pie.png" in html and "Confirmar mi cuenta" in html
+    assert "&lt;b&gt;" in html and "<b>Pérez" not in html          # el nombre se escapa
+    assert "/verificar?token=" in text                              # la versión texto conserva el enlace
+
+
+def test_stats_page(c):
+    signup(c); new_qr(c, "https://ejemplo.cl")
+    qid = re.search(r"/qr/(\d+)/editar", c.get("/panel").text).group(1); code = code_of(c)
+    for _ in range(3):
+        c.get(f"/r/{code}", follow_redirects=False)
+    r = c.get(f"/qr/{qid}/estadisticas")
+    assert r.status_code == 200 and "3</strong> escaneos" in r.text and "Ver planes" in r.text and "Escaneos por día" not in r.text
+    set_pro()
+    r = c.get(f"/qr/{qid}/estadisticas")
+    assert "Escaneos por día" in r.text and "por hora del día" in r.text and ": 3 escaneos</title>" in r.text
+    with db.connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM scans").fetchone()[0] == 3
+    other = signup(TestClient(app), email="beto@example.com")
+    assert other.get(f"/qr/{qid}/estadisticas").status_code == 404

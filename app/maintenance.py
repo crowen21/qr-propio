@@ -71,7 +71,7 @@ def remind_expiring() -> int:
             mailer.send(u["email"], f"Tu plan Pro de {config.SITE_NAME} vence el {fecha}",
                         f"Hola {u['name']}:\n\nTu plan Pro vence el {fecha}. Tus códigos van a seguir funcionando "
                         f"igual, pero dejarás de poder editarlos y cambiar su diseño.\n\n"
-                        f"Para renovarlo: {config.BASE_URL}/planes")
+                        f"Para renovarlo: {config.BASE_URL}/planes", boton=("Renovar Pro", f"{config.BASE_URL}/planes"))
             c.execute("UPDATE users SET reminded_at=? WHERE id=?", (t, u["id"]))
     return len(users)
 
@@ -85,6 +85,7 @@ def main():
     remind_expiring()
     with db.connect() as c:
         c.execute("DELETE FROM tokens WHERE expires_at < ?", (int(time.time()),))
+        c.execute("DELETE FROM scans WHERE ts < ?", (int(time.time()) - 400 * 86400,))
         # cuentas que nunca confirmaron su correo en 7 días
         c.execute("DELETE FROM users WHERE verified=0 AND created_at < ?", (int(time.time()) - 7 * 86400,))
 

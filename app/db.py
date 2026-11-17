@@ -55,6 +55,11 @@ CREATE TABLE IF NOT EXISTS payments (
     created_at INTEGER NOT NULL,
     paid_at INTEGER
 );
+CREATE TABLE IF NOT EXISTS scans (
+    qr_id INTEGER NOT NULL REFERENCES qrs(id) ON DELETE CASCADE,
+    ts INTEGER NOT NULL                      -- solo la hora del escaneo: no se guarda quién escanea
+);
+CREATE INDEX IF NOT EXISTS scans_qr_ts ON scans(qr_id, ts);
 CREATE TABLE IF NOT EXISTS blocklist (host TEXT PRIMARY KEY);
 """
 

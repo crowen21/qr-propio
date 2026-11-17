@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block titulo %}Estadísticas · {{ q.name }} · {{ site }}{% endblock %}
+{% block cuerpo %}
+<p class="suave chico"><a href="/panel">← Mis códigos</a></p>
+<h1>Estadísticas de «{{ q.name }}»</h1>
+{% if bloqueado %}
+<div class="carta oferta">
+  <p>Este código lleva <strong>{{ q.scans }}</strong> escaneos en total.</p>
+  <p class="suave">Para ver los escaneos por día, por hora y por día de la semana, haz este código permanente o pásate a Pro.</p>
+  <div class="fila"><a class="boton" href="/planes">Ver planes</a></div>
+</div>
+{% else %}
+<div class="cifras">
+  <div class="carta cifra"><span class="numero">{{ total }}</span><span class="suave chico">escaneos en total</span></div>
+  <div class="carta cifra"><span class="numero">{{ ultimos30 }}</span><span class="suave chico">últimos 30 días</span></div>
+  <div class="carta cifra"><span class="numero">{{ ultimos7 }}</span><span class="suave chico">últimos 7 días</span></div>
+  <div class="carta cifra"><span class="numero chico-num">{{ ultimo or '—' }}</span><span class="suave chico">último escaneo</span></div>
+</div>
+{% for g in graficos %}
+<figure class="carta grafico">
+  <figcaption><h2>{{ g.titulo }}</h2>{% if loop.index > 1 %}<span class="suave chico">Últimos 30 días, hora de Chile</span>{% endif %}</figcaption>
+  <svg viewBox="0 0 {{ g.W }} {{ g.H }}" role="img" aria-label="{{ g.titulo }}">
+    {% for l in g.guias %}<line class="guia" x1="{{ g.left }}" x2="{{ g.W }}" y1="{{ l.y }}" y2="{{ l.y }}"/><text class="eje" x="{{ g.left - 6 }}" y="{{ l.y + 4 }}" text-anchor="end">{{ l.v }}</text>{% endfor %}
+    {% for b in g.barras %}
+    <g class="barra"><title>{{ b.et }}: {{ b.v }} escaneo{{ '' if b.v == 1 else 's' }}</title>
+      <rect class="zona" x="{{ b.x - 1 }}" y="0" width="{{ b.w + 2 }}" height="{{ g.base }}"/>
+      {% if b.v %}<path class="valor" d="M{{ b.x }} {{ g.base }}V{{ b.y + [2, b.h]|min }}q0 -{{ [2, b.h]|min }} {{ [2, b.h]|min }} -{{ [2, b.h]|min }}h{{ b.w - 2 * [2, b.h]|min }}q{{ [2, b.h]|min }} 0 {{ [2, b.h]|min }} {{ [2, b.h]|min }}V{{ g.base }}z"/>{% endif %}
+    </g>
+    {% if b.rotulo %}<text class="eje" x="{{ b.cx }}" y="{{ g.H - 8 }}" text-anchor="middle">{{ b.et }}</text>{% endif %}
+    {% endfor %}
+    <line class="base" x1="{{ g.left }}" x2="{{ g.W }}" y1="{{ g.base }}" y2="{{ g.base }}"/>
+  </svg>
+  <details><summary>Ver como tabla</summary>
+    <table class="tabla-datos"><thead><tr><th>{{ 'Fecha' if loop.index == 1 else ('Hora' if loop.index == 2 else 'Día') }}</th><th>Escaneos</th></tr></thead>
+    <tbody>{% for b in g.barras %}<tr><td>{{ b.et }}</td><td>{{ b.v }}</td></tr>{% endfor %}</tbody></table>
+  </details>
+</figure>
+{% endfor %}
+<p class="suave chico">Solo registramos la hora de cada escaneo; no guardamos quién escanea ni desde dónde.</p>
+{% endif %}
+{% endblock %}

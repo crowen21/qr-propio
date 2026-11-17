@@ -205,3 +205,21 @@ main.acceso{flex:1;min-height:0}
   header.sitio nav{gap:10px;flex-wrap:nowrap}
   header.sitio nav .boton{padding:8px 12px;font-size:.9rem}
 }
+
+/* estadísticas */
+.cifras{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:16px 0 6px}
+.cifra{display:flex;flex-direction:column;gap:2px;margin:0}
+.numero{font-family:var(--titulo);font-size:2rem;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.chico-num{font-size:1.1rem;padding-top:.5rem}
+.grafico{margin:16px 0}
+.grafico figcaption{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.grafico svg{display:block;width:100%;height:auto;margin-top:8px}
+.grafico .valor{fill:var(--violeta)}
+.grafico .barra:hover .valor{fill:var(--violeta-h)}
+.grafico .zona{fill:transparent}
+.grafico .barra:hover .zona{fill:#5b2eff10}
+.grafico .guia{stroke:var(--borde);stroke-width:1}
+.grafico .base{stroke:#c9c5df;stroke-width:1}
+.grafico .eje{font-size:11px;fill:var(--suave);font-family:"Figtree",sans-serif}
+.tabla-datos{border-collapse:collapse;font-size:.875rem;margin-top:6px}
+.tabla-datos th,.tabla-datos td{padding:3px 14px 3px 0;text-align:left;border-bottom:1px solid var(--borde)}

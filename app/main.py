@@ -7,6 +7,8 @@ import json
 import re
 import secrets
 import time
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from collections import defaultdict, deque
 
 import segno
@@ -185,9 +187,10 @@ def find_token(c, token: str, kind: str):
 def send_verification(c, user_id: int, email: str, name: str):
     token = make_token(c, user_id, "verify", 24)
     mailer.send(email, f"Confirma tu cuenta en {config.SITE_NAME}",
-                f"Hola {name}:\n\nPara activar tu cuenta abre este enlace (vale 24 horas):\n"
+                f"Hola {name}:\n\nPara activar tu cuenta, confirma tu correo (el enlace vale 24 horas):\n"
                 f"{config.BASE_URL}/verificar?token={token}\n\n"
-                "Si no creaste esta cuenta, ignora este correo.")
+                "Si no creaste esta cuenta, ignora este correo.",
+                boton=("Confirmar mi cuenta", f"{config.BASE_URL}/verificar?token={token}"))
 
 
 @app.exception_handler(HTTPException)
@@ -250,7 +253,8 @@ def register(request: Request, name: str = Form(""), email: str = Form(""),
         else:
             mailer.send(email, f"Ya tienes una cuenta en {config.SITE_NAME}",
                         f"Alguien intentó registrarse con este correo. Si fuiste tú, ingresa en "
-                        f"{config.BASE_URL}/ingresar o recupera tu clave en {config.BASE_URL}/recuperar")
+                        f"{config.BASE_URL}/ingresar o recupera tu clave en {config.BASE_URL}/recuperar",
+                        boton=("Ingresar", f"{config.BASE_URL}/ingresar"))
     # misma respuesta exista o no la cuenta: no revela qué correos están registrados
     return render(request, "mensaje.html", titulo="Revisa tu correo",
                   texto=f"Enviamos un enlace de confirmación a {email}. Ábrelo para activar tu cuenta.")
@@ -330,7 +334,7 @@ def oauth_return(request: Request, provider: str, code: str = "", state: str = "
                 mailer.send(email, f"Intento de ingreso en {config.SITE_NAME}",
                             f"Alguien intentó ingresar con {oauth.PROVIDERS[provider]['label']} usando este correo, "
                             f"que ya tiene una cuenta. Si fuiste tú, ingresa con tu método habitual en "
-                            f"{config.BASE_URL}/ingresar")
+                            f"{config.BASE_URL}/ingresar", boton=("Ingresar", f"{config.BASE_URL}/ingresar"))
                 return render(request, "mensaje.html", titulo="Revisa tu correo",
                                  texto=f"Te enviamos un correo a {email} para terminar el ingreso.")
             if existing:
@@ -377,7 +381,8 @@ def forgot(request: Request, email: str = Form(""), csrf: str = Form("")):
             mailer.send(email, f"Restablece tu clave de {config.SITE_NAME}",
                         f"Hola {u['name']}:\n\nPara crear una clave nueva abre este enlace (vale 1 hora):\n"
                         f"{config.BASE_URL}/restablecer?token={token}\n\n"
-                        "Si no lo pediste, ignora este correo.")
+                        "Si no lo pediste, ignora este correo.",
+                        boton=("Crear clave nueva", f"{config.BASE_URL}/restablecer?token={token}"))
     return render(request, "mensaje.html", titulo="Revisa tu correo",
                   texto="Si el correo está registrado, te enviamos un enlace para crear una clave nueva.")
 
@@ -507,8 +512,8 @@ def email_qr(user, q) -> bool:
         user["email"], f"Tu código QR «{q['name']}»",
         f"Hola {user['name']}:\n\nAdjuntamos tu código QR «{q['name']}» "
         f"({kinds.KINDS[q['kind']]['label']}: {kinds.summary(q['kind'], qr_data(q))}).\n\n{detalle}\n\n"
-        f"Pruébalo con tu teléfono antes de imprimir.\n\n{config.BASE_URL}/panel",
-        [(f"qr-{q['code']}.png", png, "png")])
+        f"Pruébalo con tu teléfono antes de imprimir.",
+        [(f"qr-{q['code']}.png", png, "png")], boton=("Ir a mis códigos", f"{config.BASE_URL}/panel"))
 
 
 def qr_form(request: Request, user, kind: str, values: dict, q=None, status: int = 200, error=None):
@@ -669,6 +674,64 @@ def qr_image(request: Request, qr_id: int, fmt: str, descargar: int = 0):
     return Response(qr_image_bytes(user, q, fmt), media_type=MEDIA[fmt], headers=headers)
 
 
+# ---------- estadísticas ----------
+
+TZ = ZoneInfo("America/Santiago")
+DIAS_SEMANA = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"]
+
+
+def _barras(valores, etiquetas, cada, titulo):
+    """Datos para un gráfico de barras SVG simple (una serie), sin JavaScript."""
+    W, H, top, left, bottom = 640, 190, 14, 34, 26
+    n = len(valores)
+    maximo = max(valores) if any(valores) else 1
+    paso = next(p for p in (1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000, 10**4, 10**5, 10**6)
+                if p * 4 >= maximo)                    # hasta 4 líneas guía con números redondos
+    lineas = -(-maximo // paso)
+    tope = paso * lineas
+    ancho = (W - left) / n
+    w = min(ancho - 2, 36)                            # barras delgadas aunque haya pocas
+    alto = H - top - bottom
+    barras = []
+    for i, (v, et) in enumerate(zip(valores, etiquetas)):
+        h = alto * v / tope
+        barras.append({"x": round(left + i * ancho + (ancho - w) / 2, 2), "w": round(max(1, w), 2),
+                       "y": round(top + alto - h, 2), "h": round(h, 2), "v": v, "et": et,
+                       "cx": round(left + i * ancho + ancho / 2, 2), "rotulo": i % cada == 0})
+    guias = [{"y": round(top + alto - alto * k / lineas, 2), "v": paso * k} for k in range(1, lineas + 1)]
+    return {"W": W, "H": H, "base": top + alto, "left": left, "barras": barras, "guias": guias, "titulo": titulo}
+
+
+@app.get("/qr/{qr_id}/estadisticas")
+def qr_stats(request: Request, qr_id: int):
+    user = require_user(request)
+    with db.connect() as c:
+        q = own_qr(c, user, qr_id)
+        if not premium(user, q):
+            return render(request, "estadisticas.html", user=user, q=q, bloqueado=True)
+        desde = now() - 30 * 86400
+        filas = c.execute("SELECT ts FROM scans WHERE qr_id=? AND ts>=?", (qr_id, desde)).fetchall()
+    hoy = datetime.now(TZ).date()
+    dias = [hoy - timedelta(days=29 - i) for i in range(30)]
+    por_dia = {d: 0 for d in dias}
+    por_hora = [0] * 24
+    por_semana = [0] * 7
+    for (ts,) in filas:
+        dt = datetime.fromtimestamp(ts, TZ)
+        if dt.date() in por_dia:
+            por_dia[dt.date()] += 1
+        por_hora[dt.hour] += 1
+        por_semana[dt.weekday()] += 1
+    graf_dia = _barras([por_dia[d] for d in dias], [d.strftime("%d-%m") for d in dias], 5, "Escaneos por día")
+    graf_hora = _barras(por_hora, [f"{h}:00" for h in range(24)], 3, "Escaneos por hora del día")
+    graf_sem = _barras(por_semana, DIAS_SEMANA, 1, "Escaneos por día de la semana")
+    siete = sum(por_dia[d] for d in dias[-7:])
+    return render(request, "estadisticas.html", user=user, q=q, bloqueado=False,
+                  graficos=[graf_dia, graf_hora, graf_sem], total=q["scans"], ultimos30=len(filas),
+                  ultimos7=siete, ultimo=datetime.fromtimestamp(q["last_scan_at"], TZ).strftime("%d-%m-%Y %H:%M")
+                  if q["last_scan_at"] else "")
+
+
 # ---------- planes y pagos ----------
 
 PRODUCTS = {"qr": "QR permanente", "pro_mes": "Plan Pro mensual", "pro_anual": "Plan Pro anual"}
@@ -757,7 +820,8 @@ def process_payment(token: str):
         mailer.send(newly_paid["email"], f"Pago recibido en {config.SITE_NAME}",
                     f"Hola {newly_paid['name']}:\n\nRecibimos tu pago de {PRODUCTS[pay['product']]} "
                     f"por ${pay['amount']:,} (orden {pay['commerce_order']}).\n\n"
-                    f"Ya está activo en tu cuenta: {config.BASE_URL}/panel\n\nGracias por confiar en nosotros.".replace(",", "."))
+                    f"Ya está activo en tu cuenta.\n\nGracias por confiar en nosotros.".replace(",", "."),
+                    boton=("Ir a mis códigos", f"{config.BASE_URL}/panel"))
     return pay, status
 
 
@@ -824,6 +888,7 @@ def follow(request: Request, code: str):
                           google="Google" in (q["flag_reason"] or ""))
         if request.method == "GET":
             c.execute("UPDATE qrs SET scans=scans+1, last_scan_at=? WHERE id=?", (now(), q["id"]))
+            c.execute("INSERT INTO scans (qr_id, ts) VALUES (?, ?)", (q["id"], now()))
     if q["kind"] in kinds.REDIRECT:
         return RedirectResponse(q["target"], status_code=302, headers={"Cache-Control": "no-store"})
     d = qr_data(q)

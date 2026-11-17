@@ -34,6 +34,7 @@ Tus códigos nunca se apagan, aunque dejes de pagar. <a href="/planes">Ver plane
       <a class="boton secundario" href="/qr/{{ q.id }}/imagen.pdf?descargar=1">PDF</a>{% endif %}
       <form method="post" action="/qr/{{ q.id }}/correo"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="secundario">Enviar a mi correo</button></form>
       {% if q.id in editable_ids %}<a class="boton secundario" href="/qr/{{ q.id }}/editar">Editar</a>{% endif %}
+      {% if q.kind not in STATIC %}<a class="boton secundario" href="/qr/{{ q.id }}/estadisticas">Estadísticas</a>{% endif %}
       {% if q.kind not in STATIC %}<form method="post" action="/qr/{{ q.id }}/estado"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="secundario">{{ 'Pausar' if q.active else 'Reactivar' }}</button></form>{% endif %}
       {% if not q.paid and pagos_activos() %}<form method="post" action="/comprar"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="product" value="qr"><input type="hidden" name="qr_id" value="{{ q.id }}"><button class="secundario destacado">Hacer permanente con logo · {{ pesos(PRECIOS.qr) }}</button></form>{% endif %}
       {% if q.paid %}<span class="etiqueta pro">Permanente</span>{% endif %}

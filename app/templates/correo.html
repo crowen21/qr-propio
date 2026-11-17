@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ asunto }}</title></head>
+<body style="margin:0;padding:0;background:#ffffff;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;">
+<tr><td align="center" style="padding:24px 12px 0;">
+  <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;font-family:Arial,Helvetica,sans-serif;color:#17123f;">
+    <tr><td style="padding:4px 4px 20px;">
+      <a href="{{ base_url }}" style="text-decoration:none;"><img src="{{ base_url }}/static/correo/logo.png" width="185" height="48" alt="{{ site }}" style="display:block;border:0;width:185px;height:48px;"></a>
+    </td></tr>
+    <tr><td style="background:#fbfaff;border:1px solid #e3e0f2;border-radius:16px;padding:28px 28px 24px;">
+      {% for p in parrafos %}
+      <p style="margin:0 0 16px;font-size:16px;line-height:1.55;{% if loop.first %}font-weight:bold;font-size:18px;{% endif %}">{{ p }}</p>
+      {% endfor %}
+      {% if imagen %}
+      <p style="margin:8px 0 20px;text-align:center;"><img src="cid:{{ imagen }}" width="220" alt="Tu código QR" style="width:220px;max-width:100%;height:auto;border:1px solid #e3e0f2;border-radius:12px;"></p>
+      {% endif %}
+      {% if boton %}
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 18px;"><tr>
+        <td style="background:#5b2eff;border-radius:10px;">
+          <a href="{{ boton[1] }}" style="display:inline-block;padding:14px 26px;font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none;">{{ boton[0] }}</a>
+        </td></tr></table>
+      <p style="margin:0;font-size:13px;line-height:1.5;color:#5d5a7a;">Si el botón no funciona, copia este enlace en tu navegador:<br><a href="{{ boton[1] }}" style="color:#5b2eff;word-break:break-all;">{{ boton[1] }}</a></p>
+      {% endif %}
+    </td></tr>
+    <tr><td style="padding:28px 0 0;">
+      <img src="{{ base_url }}/static/correo/pie.png" width="600" alt="{{ site }}" style="display:block;border:0;width:100%;max-width:600px;height:auto;">
+    </td></tr>
+    <tr><td style="background:#5b2eff;padding:0 24px 22px;font-size:13px;line-height:1.6;color:#e9e3ff;">
+      Códigos QR que nunca se apagan.<br>
+      <a href="{{ base_url }}/panel" style="color:#ffffff;">Mis códigos</a> &nbsp;·&nbsp;
+      <a href="{{ base_url }}/planes" style="color:#ffffff;">Planes</a> &nbsp;·&nbsp;
+      <a href="{{ base_url }}/privacidad" style="color:#ffffff;">Privacidad</a>
+    </td></tr>
+  </table>
+</td></tr>
+</table>
+</body>
+</html>
