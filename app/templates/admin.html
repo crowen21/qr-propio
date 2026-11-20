@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block titulo %}Administración · {{ site }}{% endblock %}
+{% block clase_body %}admin{% endblock %}
+{% block cuerpo %}
+<h1>Administración</h1>
+
+<div class="admin-cifras">
+  <div class="carta"><strong>{{ resumen.cuentas }}</strong><span>cuentas ({{ resumen.verificadas }} confirmadas)</span></div>
+  <div class="carta"><strong>{{ resumen.nuevas_30d }}</strong><span>cuentas nuevas en 30 días</span></div>
+  <div class="carta"><strong>{{ resumen.pro }}</strong><span>con Pro activo</span></div>
+  <div class="carta"><strong>{{ resumen.qrs }}</strong><span>códigos ({{ resumen.permanentes }} permanentes)</span></div>
+  <div class="carta"><strong>{{ resumen.escaneos_30d }}</strong><span>escaneos en 30 días</span></div>
+  <div class="carta"><strong>{{ pesos(resumen.ingresos_mes) }}</strong><span>cobrado este mes</span></div>
+  <div class="carta"><strong>{{ pesos(resumen.ingresos) }}</strong><span>cobrado en total ({{ resumen.pagos }} pagos)</span></div>
+</div>
+<p class="suave chico">Montos brutos, con IVA y antes de la comisión de Flow.</p>
+
+<form method="get" action="/admin" class="fila admin-buscar">
+  <label for="q" class="oculto">Buscar</label>
+  <input id="q" name="q" type="search" value="{{ q }}" placeholder="Buscar por correo o nombre">
+  <button class="secundario">Buscar</button>{% if q %}<a href="/admin">Ver todo</a>{% endif %}
+</form>
+
+<h2>Cuentas ({{ cuentas|length }})</h2>
+<div class="admin-tabla">
+<table class="tabla-datos">
+  <thead><tr><th>Creada</th><th>Nombre</th><th>Correo</th><th>Ingreso</th><th>Confirmada</th><th>Plan</th><th>Le quedan</th><th>Códigos</th><th>Escaneos</th><th>Pagado</th></tr></thead>
+  <tbody>
+  {% for u in cuentas %}{% set plan, resto = plan_de(u) %}
+    <tr>
+      <td>{{ fecha(u.created_at) }}</td>
+      <td>{{ u.name }}</td>
+      <td>{{ u.email }}</td>
+      <td>{{ (u.proveedores or 'clave')|replace('google', 'Google')|replace('microsoft', 'Microsoft') }}</td>
+      <td>{{ 'Sí' if u.verified else 'No' }}</td>
+      <td>{{ plan }}</td>
+      <td>{{ resto }}</td>
+      <td>{{ u.n_qrs }}</td>
+      <td>{{ u.n_scans }}</td>
+      <td>{{ pesos(u.pagado) if u.pagado else '' }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="10">No hay cuentas que coincidan.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2>Pagos ({{ pagos|length }})</h2>
+<div class="admin-tabla">
+<table class="tabla-datos">
+  <thead><tr><th>Fecha</th><th>Correo</th><th>Producto</th><th>Código</th><th>Monto</th><th>Estado</th><th>Orden</th></tr></thead>
+  <tbody>
+  {% for p in pagos %}
+    <tr>
+      <td>{{ fecha(p.paid_at or p.created_at) }}</td>
+      <td>{{ p.email }}</td>
+      <td>{{ productos.get(p.product, p.product) }}</td>
+      <td>{{ p.qr_name or '' }}</td>
+      <td>{{ pesos(p.amount) }}</td>
+      <td>{{ {'paid': 'Pagado', 'pending': 'Pendiente', 'rejected': 'Rechazado', 'cancelled': 'Anulado'}.get(p.status, p.status) }}</td>
+      <td class="chico">{{ p.commerce_order }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7">Todavía no hay pagos.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

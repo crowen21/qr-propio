@@ -27,7 +27,7 @@ nav form{margin:0}
 
 /* formularios y botones */
 label{display:block;font-weight:600;font-size:.9rem;margin:14px 0 4px}
-input[type=text],input[type=email],input[type=password],input[type=url],input[type=file],textarea,select{width:100%;padding:11px 13px;border:1.5px solid var(--borde);border-radius:10px;font:inherit;background:#fff;color:inherit}
+input[type=text],input[type=email],input[type=password],input[type=url],input[type=search],input[type=file],textarea,select{width:100%;padding:11px 13px;border:1.5px solid var(--borde);border-radius:10px;font:inherit;background:#fff;color:inherit}
 input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none;border-color:var(--violeta);box-shadow:0 0 0 4px #5b2eff2e}
 button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--mango);outline-offset:2px}
 label input[type=checkbox]{margin-right:6px}
@@ -264,3 +264,14 @@ label.acepto{display:flex;gap:8px;align-items:flex-start;font-weight:500;font-si
 label.acepto input{margin-top:3px}
 .legal-nota{margin:10px 0 0}
 .retracto{background:#f1eeff;color:var(--tinta)}
+/* administración */
+.admin-cifras{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin:12px 0 4px}
+.admin-cifras .carta{margin:0;padding:14px 16px;display:flex;flex-direction:column;gap:2px}
+.admin-cifras strong{font-size:1.5rem;line-height:1.2}
+.admin-cifras span{font-size:.85rem;color:var(--suave,#666)}
+.admin-buscar{margin:18px 0 6px;gap:8px;align-items:center}
+.admin-buscar input{max-width:320px;margin:0}
+.admin-tabla{overflow-x:auto;margin-bottom:28px}
+.admin-tabla td{white-space:nowrap}
+.oculto{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+body.admin main .ancho{max-width:1240px}

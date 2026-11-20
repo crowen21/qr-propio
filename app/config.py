@@ -49,6 +49,8 @@ MS_CLIENT_SECRET = os.environ.get("QR_MS_CLIENT_SECRET", "")
 
 # Correo que recibe las alertas del sistema (por ejemplo, si falla la lista de sitios peligrosos).
 ADMIN_EMAIL = os.environ.get("QR_ADMIN_EMAIL", "")
+# Cuentas que pueden abrir /admin (correos separados por coma). Se definen en el servidor, no en el código.
+ADMINS = {e.strip().lower() for e in os.environ.get("QR_ADMINS", "").split(",") if e.strip()}
 
 # Seguridad de enlaces.
 SAFE_BROWSING_KEY = os.environ.get("QR_SAFE_BROWSING_KEY", "")

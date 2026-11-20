@@ -158,8 +158,13 @@ def flash(request: Request, text: str, kind: str = "ok"):
     request.session["flash"] = [kind, text]
 
 
+def is_admin(user) -> bool:
+    return bool(user and user["verified"] and user["email"].lower() in config.ADMINS)
+
+
 def render(request: Request, name: str, status: int = 200, **ctx):
     ctx.setdefault("user", current_user(request))
+    ctx["es_admin"] = is_admin(ctx["user"])
     ctx.update(csrf=csrf_token(request), site=config.SITE_NAME, base_url=config.BASE_URL,
                responsable=config.RESPONSABLE, contacto=config.CONTACTO, legal_fecha=config.LEGAL_FECHA,
                flash=request.session.pop("flash", None))
@@ -484,6 +489,53 @@ def panel(request: Request, user, status: int = 200, **ctx):
                   editable_ids={q["id"] for q in qrs if premium(user, q) or q["id"] == free_id},
                   usados=sum(1 for q in qrs if not q["paid"]),
                   max_qrs=config.PRO_QRS if pro else config.FREE_QRS, **ctx)
+
+
+@app.get("/admin")
+def admin_page(request: Request, q: str = ""):
+    user = current_user(request)
+    if not is_admin(user):
+        raise HTTPException(404, "Esta página no existe.")  # no revela que existe un panel
+    t = now()
+    mes = int(time.mktime(time.localtime(t)[:2] + (1, 0, 0, 0, 0, 0, -1)))
+    filtro = f"%{q.strip().lower()}%"
+    with db.connect() as c:
+        resumen = c.execute("""SELECT
+            (SELECT COUNT(*) FROM users) cuentas,
+            (SELECT COUNT(*) FROM users WHERE verified=1) verificadas,
+            (SELECT COUNT(*) FROM users WHERE created_at > ?) nuevas_30d,
+            (SELECT COUNT(*) FROM users WHERE plan='pro' AND (plan_until IS NULL OR plan_until > ?)) pro,
+            (SELECT COUNT(*) FROM qrs) qrs,
+            (SELECT COUNT(*) FROM qrs WHERE paid=1) permanentes,
+            (SELECT COUNT(*) FROM scans WHERE ts > ?) escaneos_30d,
+            (SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='paid') ingresos,
+            (SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='paid' AND paid_at >= ?) ingresos_mes,
+            (SELECT COUNT(*) FROM payments WHERE status='paid') pagos""",
+            (t - 30 * 86400, t, t - 30 * 86400, mes)).fetchone()
+        cuentas = c.execute("""SELECT u.*,
+            (SELECT COUNT(*) FROM qrs WHERE user_id=u.id) n_qrs,
+            (SELECT COALESCE(SUM(scans),0) FROM qrs WHERE user_id=u.id) n_scans,
+            (SELECT COALESCE(SUM(amount),0) FROM payments WHERE user_id=u.id AND status='paid') pagado,
+            (SELECT GROUP_CONCAT(provider) FROM identities WHERE user_id=u.id) proveedores
+            FROM users u WHERE lower(u.email) LIKE ? OR lower(u.name) LIKE ?
+            ORDER BY u.id DESC LIMIT 500""", (filtro, filtro)).fetchall()
+        pagos = c.execute("""SELECT p.*, u.email, q.name qr_name FROM payments p
+            JOIN users u ON u.id=p.user_id LEFT JOIN qrs q ON q.id=p.qr_id
+            WHERE lower(u.email) LIKE ? ORDER BY p.id DESC LIMIT 300""", (filtro,)).fetchall()
+
+    def plan_de(u):
+        if u["plan"] != "pro":
+            return "Gratis", ""
+        if not u["plan_until"]:
+            return "Pro", "sin vencimiento"
+        dias = (u["plan_until"] - t) // 86400
+        if u["plan_until"] <= t:
+            return "Pro vencido", f"venció el {fecha(u['plan_until'])}"
+        return "Pro", f"{dias} día{'s' if dias != 1 else ''} (hasta el {fecha(u['plan_until'])})"
+
+    return render(request, "admin.html", user=user, q=q, resumen=resumen, cuentas=cuentas, pagos=pagos,
+                  plan_de=plan_de, fecha=fecha,
+                  productos={"qr": "QR permanente", "pro_mes": "Pro mensual", "pro_anual": "Pro anual"})
 
 
 @app.get("/panel")

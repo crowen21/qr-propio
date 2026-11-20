@@ -676,3 +676,24 @@ def test_logo_size_choice_vertical_logo_and_edit_keeps_design(c):
         sizes[s] = lw * lh
     assert sizes["s"] < sizes["m"] < sizes["l"]
     assert c.post(f"/qr/{qid}/editar", data={**data, "logo_size": "enorme"}).status_code == 200  # valor raro: queda grande
+
+
+def test_admin_page_only_for_configured_admins(c, monkeypatch):
+    from app import config
+    monkeypatch.setattr(config, "ADMINS", {"jefe@example.com"})
+    assert c.get("/admin").status_code == 404                      # sin sesión: no revela la página
+    signup(c, email="ana@example.com")
+    assert c.get("/admin").status_code == 404 and 'href="/admin"' not in c.get("/panel").text
+    admin = signup(TestClient(app), email="Jefe@example.com")
+    with db.connect() as conn:
+        uid = conn.execute("SELECT id FROM users WHERE email='ana@example.com'").fetchone()[0]
+        conn.execute("UPDATE users SET plan='pro', plan_until=? WHERE id=?", (int(time.time()) + 10 * 86400 + 60, uid))
+        conn.execute("INSERT INTO payments (user_id,product,amount,commerce_order,status,created_at,paid_at) "
+                     "VALUES (?,?,?,?,?,?,?)", (uid, "pro_mes", 3990, "FQ-test-1", "paid", int(time.time()), int(time.time())))
+    r = admin.get("/admin")
+    assert r.status_code == 200 and 'href="/admin"' in r.text
+    assert "ana@example.com" in r.text and "10 días" in r.text and "Pro mensual" in r.text and "$3.990" in r.text
+    r = admin.get("/admin?q=jefe")
+    assert "ana@example.com" not in r.text and "jefe@example.com" in r.text
+    with db.connect() as conn:
+        conn.execute("DELETE FROM payments")

@@ -13,6 +13,7 @@
   <nav>
     <a href="/planes">Planes</a>
   {% if user %}
+    {% if es_admin %}<a href="/admin">Admin</a>{% endif %}
     <span class="suave chico">{{ user.name }}</span>
     <form method="post" action="/salir"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="secundario">Salir</button></form>
   {% else %}
