@@ -13,10 +13,20 @@ for VAR in "$@"; do
     QR_GOOGLE_CLIENT_ID) PATRON='[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com' ;;
     QR_GOOGLE_CLIENT_SECRET) PATRON='GOCSPX-[A-Za-z0-9_-]{28}' ;;
     QR_MS_CLIENT_ID) PATRON='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}' ;;
+    QR_FLOW_API_KEY) PATRON='[0-9A-Za-z]{8}-[0-9A-Za-z]{4}-[0-9A-Za-z]{4}-[0-9A-Za-z]{4}-[0-9A-Za-z]{12}' ;;
+    QR_FLOW_API_URL) PATRON='https://(www|sandbox)\.flow\.cl/api' ;;
     *) PATRON='' ;;
   esac
   if [ -n "$PATRON" ]; then
     VAL="$(printf '%s' "$VAL" | grep -oE "$PATRON" | head -n1 || true)"
+  else
+    # Sin formato conocido: si el texto es la misma clave repetida, se deja una sola copia.
+    for K in 2 3 4 5; do
+      L=$(( ${#VAL} / K ))
+      if [ $(( L * K )) -eq ${#VAL} ] && [ "$L" -gt 0 ] && [ "$(printf "${VAL:0:L}%.0s" $(seq $K))" = "$VAL" ]; then
+        VAL="${VAL:0:L}"; break
+      fi
+    done
   fi
   [ -n "$VAL" ] || { echo "No encontré un valor válido para $VAR; no se guardó. Vuelve a intentarlo."; exit 1; }
   [[ "$VAL" != *'|'* ]] || { echo "El valor contiene un carácter no permitido."; exit 1; }
