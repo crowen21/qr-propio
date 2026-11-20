@@ -67,7 +67,9 @@ def _pixeles_qr() -> list[tuple[int, int, bool]]:
     return out
 
 
-templates.env.globals.update(
+# Versión del CSS en la URL: cada cambio obliga al navegador a descargar el archivo nuevo.
+CSS_V = hashlib.sha256((config.BASE_DIR / "app" / "static" / "estilo.css").read_bytes()).hexdigest()[:10]
+templates.env.globals.update(css_v=CSS_V, 
     QR_PIXELES=_pixeles_qr(),
     mosaico=_mosaico(),
     KINDS=kinds.KINDS, STATIC=kinds.STATIC, proveedores=oauth.enabled, PRECIOS=config.PRICES,
