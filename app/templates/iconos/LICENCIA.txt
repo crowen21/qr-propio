@@ -1,2 +1,16 @@
 Íconos de Google y Microsoft: colección «SVG Logos» (https://github.com/gilbarbara/logos) vía @iconify-json/logos, licencia CC0 1.0.
 Cada marca pertenece a su dueño; se usan solo para identificar el ingreso con esa cuenta.
+
+tipos/instagram.svg y tipos/whatsapp.svg: Simple Icons 13.21.0 (https://simpleicons.org), licencia CC0 1.0.
+Las marcas Instagram y WhatsApp pertenecen a Meta Platforms, Inc.; se usan solo para indicar a qué servicio lleva el código.
+
+tipos/url, ubicacion, tel, sms, email, vcard, texto, wifi: Lucide 0.460.0 (https://lucide.dev), licencia ISC.
+ISC License. Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT).
+All other copyright (c) for Lucide are held by Lucide Contributors 2022.
+Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby
+granted, provided that the above copyright notice and this permission notice appear in all copies.
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING
+ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL,
+DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE
+OR PERFORMANCE OF THIS SOFTWARE.

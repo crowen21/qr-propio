@@ -9,7 +9,7 @@ Tus códigos nunca se apagan, aunque dejes de pagar. <a href="/planes">Ver plane
 <h2>Nuevo código: ¿qué quieres que abra?</h2>
 <div class="tipos">
 {% for k, t in KINDS.items() %}
-  <a class="tipo" href="/qr/nuevo?tipo={{ k }}"><strong>{{ t.label }}</strong><span>{{ t.desc }}</span></a>
+  <a class="tipo tipo-{{ k }}" href="/qr/nuevo?tipo={{ k }}"><span class="tipo-icono">{% include "iconos/tipos/" ~ k ~ ".svg" %}</span><strong>{{ t.label }}</strong><span>{{ t.desc }}</span></a>
 {% endfor %}
 </div>
 </div>
