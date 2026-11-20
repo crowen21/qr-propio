@@ -1,6 +1,6 @@
 """Tipos de código QR.
 
- - REDIRECT: el QR lleva a nuestro sitio y este redirige (web, WhatsApp, Instagram, mapa).
+ - REDIRECT: el QR lleva a nuestro sitio y este redirige (web, WhatsApp, Instagram, Facebook, TikTok, mapa).
  - LANDING:  el QR lleva a una página nuestra con el contenido o un botón (correo, llamada, SMS, contacto, texto).
  - STATIC:   los datos van dentro del propio QR (WiFi): no pasa por el servidor, no se cuenta ni se edita sin reimprimir.
 """
@@ -21,6 +21,10 @@ KINDS = {
                              F("message", "Mensaje inicial (opcional)", "textarea", False, "Hola, quiero más información", 500)]),
     "instagram": dict(label="Instagram", desc="Lleva directo a un perfil",
                       fields=[F("username", "Usuario", hint="@tucuenta", max=31)]),
+    "facebook": dict(label="Facebook", desc="Lleva directo a tu página o perfil",
+                     fields=[F("page", "Usuario o enlace de tu página", hint="tunegocio o facebook.com/tunegocio", max=300)]),
+    "tiktok": dict(label="TikTok", desc="Lleva directo a un perfil",
+                   fields=[F("username", "Usuario", hint="@tucuenta", max=25)]),
     "ubicacion": dict(label="Ubicación", desc="Abre un lugar en Google Maps",
                       fields=[F("query", "Dirección o coordenadas", hint="Av. Providencia 1234, Santiago", max=300)]),
     "tel": dict(label="Llamada", desc="Botón para llamar a un número",
@@ -46,7 +50,7 @@ KINDS = {
                          F("security", "Seguridad", "select", options=[("WPA", "WPA / WPA2 / WPA3"), ("WEP", "WEP"), ("nopass", "Sin clave")]),
                          F("password", "Clave de la red", required=False, max=63)]),
 }
-REDIRECT = {"url", "whatsapp", "instagram", "ubicacion"}
+REDIRECT = {"url", "whatsapp", "instagram", "facebook", "tiktok", "ubicacion"}
 LANDING = {"tel", "sms", "email", "vcard", "texto"}
 STATIC = {"wifi"}
 
@@ -64,6 +68,29 @@ def norm_phone(raw: str) -> str:
     if not re.fullmatch(r"\+\d{8,15}", s):
         raise ValueError("Escribe el número con código de país, por ejemplo +56 9 1234 5678.")
     return s
+
+
+FB_HOSTS = {"facebook.com", "www.facebook.com", "m.facebook.com", "web.facebook.com", "fb.com", "www.fb.com"}
+
+
+def facebook_url(raw: str) -> str:
+    """Acepta un usuario de página (tunegocio) o un enlace de facebook.com; siempre devuelve un enlace de Facebook."""
+    v = raw.strip().lstrip("@")
+    if "facebook.com" in v.lower() or "fb.com" in v.lower():
+        url = v if "://" in v else "https://" + v
+        parts = urlsplit(url)
+        if parts.scheme not in ("http", "https") or (parts.hostname or "").lower() not in FB_HOSTS \
+                or parts.username or parts.password or parts.port:
+            raise ValueError("El enlace debe ser de facebook.com.")
+        path = parts.path.rstrip("/")
+        if not path:
+            raise ValueError("Falta el nombre de la página en el enlace de Facebook.")
+        return "https://www.facebook.com" + path + (f"?{parts.query}" if parts.query else "")
+    if re.fullmatch(r"\d{5,20}", v):
+        return f"https://www.facebook.com/profile.php?id={v}"
+    if not re.fullmatch(r"[A-Za-z0-9.\-]{3,50}", v):
+        raise ValueError("Escribe el usuario de tu página (por ejemplo, tunegocio) o pega el enlace de facebook.com.")
+    return f"https://www.facebook.com/{v}"
 
 
 def build(kind: str, form: dict) -> tuple[dict, str]:
@@ -94,6 +121,14 @@ def build(kind: str, form: dict) -> tuple[dict, str]:
         if not re.fullmatch(r"[A-Za-z0-9._]{1,30}", d["username"]):
             raise ValueError("El usuario de Instagram solo lleva letras, números, puntos y guiones bajos.")
         target = f"https://www.instagram.com/{d['username']}/"
+    elif kind == "facebook":
+        target = facebook_url(d["page"])
+        d["page"] = target
+    elif kind == "tiktok":
+        d["username"] = d["username"].lstrip("@")
+        if not re.fullmatch(r"[A-Za-z0-9._]{2,24}", d["username"]):
+            raise ValueError("El usuario de TikTok solo lleva letras, números, puntos y guiones bajos (2 a 24).")
+        target = f"https://www.tiktok.com/@{d['username']}"
     elif kind == "ubicacion":
         target = "https://www.google.com/maps/search/?api=1&query=" + quote(d["query"])
     elif kind == "vcard" and d["website"]:
@@ -151,6 +186,7 @@ def vcard(d: dict) -> str:
 def summary(kind: str, d: dict) -> str:
     return {
         "url": d.get("target", ""), "whatsapp": d.get("phone", ""), "instagram": "@" + d.get("username", ""),
+        "facebook": d.get("page", "").replace("https://www.", ""), "tiktok": "@" + d.get("username", ""),
         "ubicacion": d.get("query", ""), "tel": d.get("phone", ""), "sms": d.get("phone", ""),
         "email": d.get("to", ""), "vcard": d.get("full_name", ""), "wifi": "Red " + d.get("ssid", ""),
         "texto": (d.get("text", "")[:80] + "…") if len(d.get("text", "")) > 80 else d.get("text", ""),

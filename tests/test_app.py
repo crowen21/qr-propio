@@ -697,3 +697,24 @@ def test_admin_page_only_for_configured_admins(c, monkeypatch):
     assert "ana@example.com" not in r.text and "jefe@example.com" in r.text
     with db.connect() as conn:
         conn.execute("DELETE FROM payments")
+
+
+def test_facebook_and_tiktok(c):
+    signup(c)
+    cases = {
+        ("facebook", "page", "@mi.negocio"): "https://www.facebook.com/mi.negocio",
+        ("facebook", "page", "https://m.facebook.com/mi.negocio/?ref=1"): "https://www.facebook.com/mi.negocio?ref=1",
+        ("facebook", "page", "facebook.com/profile.php?id=1000123"): "https://www.facebook.com/profile.php?id=1000123",
+        ("facebook", "page", "1000123456"): "https://www.facebook.com/profile.php?id=1000123456",
+        ("tiktok", "username", "@mi_tienda.cl"): "https://www.tiktok.com/@mi_tienda.cl",
+    }
+    for (kind, field, value), dest in cases.items():
+        q = make(c, kind, **{field: value})
+        assert c.get(f"/r/{q['code']}", follow_redirects=False).headers["location"] == dest
+    for kind, field, bad in (("facebook", "page", "https://facebook.com.evil.cl/x"), ("facebook", "page", "https://evil.cl/facebook.com"),
+                             ("facebook", "page", "https://user:pw@facebook.com/x"), ("facebook", "page", "facebook.com/"),
+                             ("tiktok", "username", "a/../b")):
+        r = c.post("/qr/nuevo", data={"kind": kind, "name": "x", field: bad, "csrf": csrf(c, "/qr/nuevo")})
+        assert r.status_code == 400, (kind, bad)
+    panel = c.get("/panel").text
+    assert "tipo-facebook" in panel and "tipo-tiktok" in panel

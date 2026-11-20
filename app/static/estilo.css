@@ -294,3 +294,5 @@ body.admin main .ancho{max-width:1240px}
 .tipo-instagram:hover .tipo-icono{background:#ffe8f1}
 .tipo span:last-child{font-size:.78rem}
 @media (prefers-reduced-motion:reduce){.tipo,.tipo:hover,.tipo:active{transition:none;transform:none}}
+.tipo-facebook .tipo-icono,.tipo-facebook:hover .tipo-icono{background:#e8f0ff;color:#0866ff}
+.tipo-tiktok .tipo-icono,.tipo-tiktok:hover .tipo-icono{background:#f0f0f3;color:#010101}
