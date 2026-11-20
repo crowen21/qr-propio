@@ -18,6 +18,12 @@ class FlowError(Exception):
     pass
 
 
+def _check(r: httpx.Response) -> dict:
+    if r.status_code >= 400:  # Flow explica el motivo en el cuerpo: se guarda en el registro
+        raise FlowError(f"HTTP {r.status_code}: {r.text[:300]}")
+    return r.json()
+
+
 def enabled() -> bool:
     return bool(config.FLOW_API_KEY and config.FLOW_SECRET)
 
@@ -40,8 +46,7 @@ def create_payment(order: str, subject: str, amount: int, email: str) -> tuple[s
             "email": email, "urlConfirmation": f"{config.BASE_URL}/pago/confirmacion",
             "urlReturn": f"{config.BASE_URL}/pago/retorno",
         }))
-        r.raise_for_status()
-        body = r.json()
+        body = _check(r)
         return f"{body['url']}?token={body['token']}", body["token"]
     except Exception as e:
         raise FlowError(f"Flow no respondió al crear el pago: {e}") from e
@@ -51,7 +56,6 @@ def payment_status(token: str) -> dict:
     try:
         r = httpx.get(f"{config.FLOW_API_URL}/payment/getStatus", timeout=15,
                       params=_signed({"token": token}))
-        r.raise_for_status()
-        return r.json()
+        return _check(r)
     except Exception as e:
         raise FlowError(f"Flow no respondió al consultar el pago: {e}") from e
