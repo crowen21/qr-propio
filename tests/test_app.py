@@ -817,3 +817,33 @@ def test_trial_reminder_sent_once(c):
     assert maintenance.remind_trial() == 0
     set_pro(None); _set("UPDATE users SET trial_reminded=NULL")
     assert maintenance.remind_trial() == 0                           # con Pro no hay nada que avisar
+
+
+def test_google_ads_click_becomes_offline_conversion(c, monkeypatch):
+    from app import config
+    monkeypatch.setattr(config, "ADMINS", {"jefe@example.com"})
+    c.get("/?gclid=Cj0KCQiA_prueba-123")
+    signup(c)                                                        # mismo navegador: la sesión trae el clic
+    with db.connect() as conn:
+        u = conn.execute("SELECT * FROM users WHERE email='ana@example.com'").fetchone()
+        assert u["gclid"] == "Cj0KCQiA_prueba-123" and abs(u["gclid_at"] - time.time()) < 60
+        conn.execute("INSERT INTO payments (user_id,product,amount,commerce_order,status,created_at,paid_at) "
+                     "VALUES (?,?,?,?,?,?,?)", (u["id"], "pro_anual", 34990, "FQ-ads-1", "paid", int(time.time()), int(time.time())))
+    other = TestClient(app)
+    other.get("/registro?gclid=<script>")                          # un valor raro no se guarda
+    signup(other, email="luis@example.com")
+    admin = signup(TestClient(app), email="jefe@example.com")
+    assert c.get("/admin/conversiones.csv").status_code == 404
+    csv_text = admin.get("/admin/conversiones.csv").text
+    lines = csv_text.strip().splitlines()
+    assert lines[0] == "Google Click ID,Conversion Name,Conversion Time,Conversion Value,Conversion Currency"
+    assert any(l.startswith("Cj0KCQiA_prueba-123,Registro FacilQR,") for l in lines)
+    assert any(l.startswith("Cj0KCQiA_prueba-123,Compra FacilQR,") and l.endswith(",34990,CLP") for l in lines)
+    assert len(lines) == 3 and "Anuncio de Google" in admin.get("/admin").text
+    with db.connect() as conn:                                       # pasados 90 días ya no se informa ni se guarda
+        conn.execute("UPDATE users SET gclid_at=gclid_at-100*86400")
+    assert len(admin.get("/admin/conversiones.csv").text.strip().splitlines()) == 1
+    assert maintenance.expire_ad_clicks() == 1
+    with db.connect() as conn:
+        assert conn.execute("SELECT gclid FROM users WHERE email='ana@example.com'").fetchone()[0] is None
+        conn.execute("DELETE FROM payments")

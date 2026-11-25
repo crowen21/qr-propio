@@ -114,6 +114,13 @@ def remind_trial() -> int:
     return len(users)
 
 
+def expire_ad_clicks() -> int:
+    """El identificador del clic en un anuncio solo sirve 90 días (Política de privacidad, sección 5)."""
+    with db.connect() as c:
+        return c.execute("UPDATE users SET gclid=NULL WHERE gclid IS NOT NULL AND gclid_at < ?",
+                         (int(time.time()) - 90 * 86400,)).rowcount
+
+
 def main():
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     db.init()
@@ -122,6 +129,7 @@ def main():
     log.info("Enlaces revisados: %d, bloqueados: %d", total, flagged)
     remind_expiring()
     remind_trial()
+    expire_ad_clicks()
     with db.connect() as c:
         c.execute("DELETE FROM tokens WHERE expires_at < ?", (int(time.time()),))
         c.execute("DELETE FROM scans WHERE ts < ?", (int(time.time()) - 400 * 86400,))

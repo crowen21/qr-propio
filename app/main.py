@@ -1,4 +1,5 @@
 import base64
+import csv
 import hashlib
 import logging
 import hmac
@@ -212,8 +213,26 @@ async def http_error(request: Request, exc: HTTPException):
 
 # ---------- páginas públicas ----------
 
+GCLID_RE = re.compile(r"[A-Za-z0-9_\-]{10,200}")
+
+
+def capture_ad(request: Request):
+    """Si la visita viene de un anuncio de Google, guarda el identificador del clic en la sesión (sin cookies nuevas)."""
+    g = request.query_params.get("gclid", "")
+    if GCLID_RE.fullmatch(g):
+        request.session["ad"] = {"gclid": g, "t": now()}
+
+
+def ad_click(request: Request):
+    ad = request.session.get("ad") or {}
+    if ad.get("gclid") and now() - int(ad.get("t", 0)) < 90 * 86400:
+        return ad["gclid"], int(ad["t"])
+    return None, None
+
+
 @app.get("/")
 def home(request: Request):
+    capture_ad(request)
     if current_user(request):
         return redirect("/panel")
     return render(request, "inicio.html")
@@ -236,6 +255,7 @@ def health():
 
 @app.get("/registro")
 def register_form(request: Request):
+    capture_ad(request)
     return render(request, "registro.html", form={})
 
 
@@ -260,9 +280,10 @@ def register(request: Request, name: str = Form(""), email: str = Form(""),
     with db.connect() as c:
         u = c.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
         if u is None:
+            gclid, gclid_at = ad_click(request)
             cur = c.execute(
-                "INSERT INTO users (name,email,pw_hash,created_at,terms_at) VALUES (?,?,?,?,?)",
-                (name, email, hash_password(password), now(), now()))
+                "INSERT INTO users (name,email,pw_hash,created_at,terms_at,gclid,gclid_at) VALUES (?,?,?,?,?,?,?)",
+                (name, email, hash_password(password), now(), now(), gclid, gclid_at))
             send_verification(c, cur.lastrowid, email, name)
         elif not u["verified"]:
             send_verification(c, u["id"], email, u["name"])
@@ -360,8 +381,10 @@ def oauth_return(request: Request, provider: str, code: str = "", state: str = "
                     c.execute("DELETE FROM tokens WHERE user_id=?", (existing["id"],))
                 uid = existing["id"]
             else:
-                uid = c.execute("INSERT INTO users (name,email,pw_hash,verified,created_at,terms_at) VALUES (?,?,?,?,?,?)",
-                                (name, email, NO_PASSWORD, int(info["email_trusted"]), now(), now())).lastrowid
+                gclid, gclid_at = ad_click(request)
+                uid = c.execute("INSERT INTO users (name,email,pw_hash,verified,created_at,terms_at,gclid,gclid_at) "
+                                "VALUES (?,?,?,?,?,?,?,?)",
+                                (name, email, NO_PASSWORD, int(info["email_trusted"]), now(), now(), gclid, gclid_at)).lastrowid
             c.execute("INSERT INTO identities VALUES (?,?,?)", (provider, info["subject"], uid))
             user = c.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
         if not user["verified"]:
@@ -522,6 +545,31 @@ def panel(request: Request, user, status: int = 200, **ctx):
                   editable_ids={q["id"] for q in qrs if premium(user, q) or q["id"] == free_id},
                   usados=sum(1 for q in qrs if not q["paid"]),
                   max_qrs=config.PRO_QRS if pro else config.FREE_QRS, **ctx)
+
+
+@app.get("/admin/conversiones.csv")
+def admin_conversions(request: Request):
+    """Registros y pagos que vinieron de un anuncio, en el formato de importación de conversiones de Google Ads."""
+    if not is_admin(current_user(request)):
+        raise HTTPException(404, "Esta página no existe.")
+    win = 90 * 86400  # Google solo acepta conversiones hasta 90 días después del clic
+    with db.connect() as c:
+        regs = c.execute("SELECT gclid, created_at t, NULL v FROM users WHERE verified=1 AND gclid IS NOT NULL "
+                         "AND created_at BETWEEN gclid_at AND gclid_at + ?", (win,)).fetchall()
+        pays = c.execute("SELECT u.gclid, p.paid_at t, p.amount v FROM payments p JOIN users u ON u.id=p.user_id "
+                         "WHERE p.status='paid' AND u.gclid IS NOT NULL AND p.paid_at BETWEEN u.gclid_at AND u.gclid_at + ?",
+                         (win,)).fetchall()
+    tz = time.strftime("%z")  # el servidor está en UTC; se indica la zona en cada fecha
+    out = io.StringIO()
+    w = csv.writer(out, lineterminator="\n")
+    w.writerow(["Google Click ID", "Conversion Name", "Conversion Time", "Conversion Value", "Conversion Currency"])
+    for name, rows in ((config.CONV_REGISTRO, regs), (config.CONV_COMPRA, pays)):
+        for r in rows:
+            w.writerow([r["gclid"], name, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(r["t"])) + tz,
+                        r["v"] if r["v"] is not None else "", "CLP" if r["v"] is not None else ""])
+    return Response(out.getvalue(), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="conversiones-{time.strftime("%Y-%m-%d")}.csv"',
+                             "Cache-Control": "no-store"})
 
 
 @app.get("/admin")
@@ -866,6 +914,7 @@ PRODUCTS = {"qr": "QR permanente", "pro_mes": "Plan Pro mensual", "pro_anual": "
 
 @app.get("/planes")
 def plans_page(request: Request):
+    capture_ad(request)
     u = current_user(request)
     return render(request, "planes.html", user=u, pro=bool(u and is_pro(u)),
                   pro_hasta=fecha(u["plan_until"]) if u and is_pro(u) else "")

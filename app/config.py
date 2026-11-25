@@ -27,6 +27,9 @@ PRICES = {
 PRO_DAYS = {"pro_mes": 31, "pro_anual": 366}
 TRIAL_DAYS = int(os.environ.get("QR_TRIAL_DAYS", "30"))   # el plan gratis funciona este tiempo; luego los códigos quedan en pausa
 GRACE_DAYS = int(os.environ.get("QR_GRACE_DAYS", "7"))    # días que siguen activos los códigos después de vencer Pro
+# Conversiones para Google Ads (importación sin scripts): nombres iguales a las acciones creadas en Google Ads.
+CONV_REGISTRO = os.environ.get("QR_CONV_REGISTRO", "Registro FacilQR")
+CONV_COMPRA = os.environ.get("QR_CONV_COMPRA", "Compra FacilQR")
 NOTICE_DAYS = 15                                          # aviso a las cuentas existentes antes del cambio (Términos, sección 11)
 
 # Pagos con Flow. Sin clave los botones de compra no aparecen.

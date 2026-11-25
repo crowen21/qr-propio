@@ -93,7 +93,8 @@ def init():
             c.execute("UPDATE qrs SET legacy=1")
         ucols = {r["name"] for r in c.execute("PRAGMA table_info(users)")}
         for col, ddl in (("plan_until", "INTEGER"), ("reminded_at", "INTEGER"), ("terms_at", "INTEGER"),
-                         ("trial_until", "INTEGER"), ("trial_reminded", "INTEGER")):
+                         ("trial_until", "INTEGER"), ("trial_reminded", "INTEGER"),
+                         ("gclid", "TEXT"), ("gclid_at", "INTEGER")):
             if col not in ucols:
                 c.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
         if "grandfather_until" not in ucols:

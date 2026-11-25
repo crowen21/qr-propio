@@ -14,6 +14,8 @@
   <div class="carta"><strong>{{ pesos(resumen.ingresos) }}</strong><span>cobrado en total ({{ resumen.pagos }} pagos)</span></div>
 </div>
 <p class="suave chico">Montos brutos, con IVA y antes de la comisión de Flow.</p>
+<p><a class="boton secundario" href="/admin/conversiones.csv">Descargar conversiones para Google Ads</a>
+<span class="suave chico">Registros y pagos de personas que llegaron desde un anuncio. Súbelo en Google Ads: Objetivos → Conversiones → Cargas.</span></p>
 
 <form method="get" action="/admin" class="fila admin-buscar">
   <label for="q" class="oculto">Buscar</label>
@@ -24,7 +26,7 @@
 <h2>Cuentas ({{ cuentas|length }})</h2>
 <div class="admin-tabla">
 <table class="tabla-datos">
-  <thead><tr><th>Creada</th><th>Nombre</th><th>Correo</th><th>Ingreso</th><th>Confirmada</th><th>Plan</th><th>Le quedan</th><th>Códigos</th><th>Escaneos</th><th>Pagado</th></tr></thead>
+  <thead><tr><th>Creada</th><th>Nombre</th><th>Correo</th><th>Ingreso</th><th>Llegó por</th><th>Confirmada</th><th>Plan</th><th>Le quedan</th><th>Códigos</th><th>Escaneos</th><th>Pagado</th></tr></thead>
   <tbody>
   {% for u in cuentas %}{% set plan, resto = plan_de(u) %}
     <tr>
@@ -32,6 +34,7 @@
       <td>{{ u.name }}</td>
       <td>{{ u.email }}</td>
       <td>{{ (u.proveedores or 'clave')|replace('google', 'Google')|replace('microsoft', 'Microsoft') }}</td>
+      <td>{{ 'Anuncio de Google' if u.gclid_at else '' }}</td>
       <td>{{ 'Sí' if u.verified else 'No' }}</td>
       <td>{{ plan }}</td>
       <td>{{ resto }}</td>
@@ -40,7 +43,7 @@
       <td>{{ pesos(u.pagado) if u.pagado else '' }}</td>
     </tr>
   {% else %}
-    <tr><td colspan="10">No hay cuentas que coincidan.</td></tr>
+    <tr><td colspan="11">No hay cuentas que coincidan.</td></tr>
   {% endfor %}
   </tbody>
 </table>
