@@ -14,7 +14,7 @@ SITE_NAME = os.environ.get("QR_SITE_NAME", "FacilQR")
 # Responsable del servicio y de los datos personales (aparece en los Términos y la Política de privacidad).
 RESPONSABLE = os.environ.get("QR_RESPONSABLE", "Sebastián Castillo Lira")
 CONTACTO = os.environ.get("QR_CONTACTO", "contacto@facilqr.cl")
-LEGAL_FECHA = "17 de noviembre de 2026"  # fecha de la última versión de los textos legales
+LEGAL_FECHA = "25 de noviembre de 2026"  # fecha de la última versión de los textos legales
 
 # Planes. Precios en pesos chilenos, IVA incluido.
 FREE_QRS = int(os.environ.get("QR_FREE_QRS", "1"))        # códigos sin pagar por cuenta
@@ -25,6 +25,9 @@ PRICES = {
     "pro_anual": int(os.environ.get("QR_PRECIO_PRO_ANUAL", "34990")),
 }
 PRO_DAYS = {"pro_mes": 31, "pro_anual": 366}
+TRIAL_DAYS = int(os.environ.get("QR_TRIAL_DAYS", "30"))   # el plan gratis funciona este tiempo; luego los códigos quedan en pausa
+GRACE_DAYS = int(os.environ.get("QR_GRACE_DAYS", "7"))    # días que siguen activos los códigos después de vencer Pro
+NOTICE_DAYS = 15                                          # aviso a las cuentas existentes antes del cambio (Términos, sección 11)
 
 # Pagos con Flow. Sin clave los botones de compra no aparecen.
 # Sandbox: https://sandbox.flow.cl/api   Producción: https://www.flow.cl/api

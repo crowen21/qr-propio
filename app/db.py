@@ -1,7 +1,8 @@
 import sqlite3
+import time
 from contextlib import contextmanager
 
-from .config import DB_PATH
+from .config import DB_PATH, NOTICE_DAYS
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
@@ -86,7 +87,16 @@ def init():
                          ("frame", "TEXT"), ("logo_size", "TEXT")):
             if col not in cols:  # bases creadas con una versión anterior
                 c.execute(f"ALTER TABLE qrs ADD COLUMN {col} {ddl}")
+        if "legacy" not in cols:
+            # Los códigos creados con la promesa «nunca se apagan» la conservan para siempre.
+            c.execute("ALTER TABLE qrs ADD COLUMN legacy INTEGER NOT NULL DEFAULT 0")
+            c.execute("UPDATE qrs SET legacy=1")
         ucols = {r["name"] for r in c.execute("PRAGMA table_info(users)")}
-        for col, ddl in (("plan_until", "INTEGER"), ("reminded_at", "INTEGER"), ("terms_at", "INTEGER")):
+        for col, ddl in (("plan_until", "INTEGER"), ("reminded_at", "INTEGER"), ("terms_at", "INTEGER"),
+                         ("trial_until", "INTEGER"), ("trial_reminded", "INTEGER")):
             if col not in ucols:
                 c.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
+        if "grandfather_until" not in ucols:
+            # Cuentas que ya existían: sus códigos nuevos tampoco vencen durante el plazo de aviso.
+            c.execute("ALTER TABLE users ADD COLUMN grandfather_until INTEGER")
+            c.execute("UPDATE users SET grandfather_until=?", (int(time.time()) + NOTICE_DAYS * 86400,))

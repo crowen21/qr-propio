@@ -2,8 +2,8 @@
 {% block titulo %}Planes · {{ site }}{% endblock %}
 {% block cuerpo %}
 <section class="planes-cabeza">
-  <h1>Tus códigos nunca se apagan.</h1>
-  <p class="suave">En otros servicios, cuando termina la prueba o dejas de pagar, tus QR impresos dejan de funcionar. Aquí siguen funcionando siempre. Pagas solo por diseño, más códigos y estadísticas.</p>
+  <h1>Elige cuánto tiempo quieres tu QR.</h1>
+  <p class="suave">Pruébalo gratis {{ trial_days }} días. Después, tus códigos siguen activos con Pro o, si prefieres pagar una sola vez, con el QR permanente, que no vence nunca. Si un código queda en pausa, vuelve a funcionar al instante cuando eliges un plan: no hay que reimprimirlo.</p>
   {% if pro %}<p class="aviso ok">Tu cuenta tiene Pro{% if pro_hasta %} hasta el {{ pro_hasta }}{% endif %}.</p>{% endif %}
 </section>
 
@@ -22,13 +22,14 @@
     <h2>Gratis</h2>
     <p class="precio">$0</p>
     <ul>
-      <li>1 código QR que nunca vence</li>
+      <li>1 código QR por {{ trial_days }} días</li>
       <li>Todos los tipos: WhatsApp, Instagram, Facebook, TikTok, web, WiFi…</li>
       <li>Cambias el destino sin reimprimir</li>
       <li>Contador de escaneos</li>
       <li>PNG con la marca «{{ site }}» abajo</li>
+      <li>Al terminar la prueba, el código queda en pausa hasta que elijas un plan</li>
     </ul>
-    {% if not user %}<a class="boton secundario ancho-total" href="/registro">Empezar gratis</a>{% endif %}
+    {% if not user %}<a class="boton secundario ancho-total" href="/registro">Probar gratis</a>{% endif %}
   </article>
 
   <article class="plan">
@@ -39,7 +40,7 @@
       <li>Sin la marca de {{ site }}</li>
       <li>PNG, SVG y PDF para imprenta</li>
       <li>Estadísticas: escaneos por día, hora y día de la semana</li>
-      <li>Sin suscripción, para siempre</li>
+      <li>Sin suscripción: pagas una vez y no vence nunca</li>
     </ul>
     {% if user %}<p class="suave chico">Se compra desde tu panel, en el código que quieras.</p>{% else %}<a class="boton secundario ancho-total" href="/registro">Crear cuenta</a>{% endif %}
   </article>
@@ -52,7 +53,7 @@
       <li>Logo, colores y marco en todos</li>
       <li>PNG, SVG y PDF para imprenta</li>
       <li>Estadísticas de cada código: por día, hora y día de la semana</li>
-      <li>Si dejas de pagar, tus códigos siguen funcionando</li>
+      <li>Tus códigos funcionan mientras tengas Pro, con {{ grace_days }} días de gracia al vencer</li>
     </ul>
     {{ comprar('pro_mes', 'Pagar 1 mes') }}
   </article>

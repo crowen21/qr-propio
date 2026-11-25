@@ -2,8 +2,12 @@
 {% block titulo %}Mis códigos · {{ site }}{% endblock %}
 {% block cuerpo %}
 <h1>Mis códigos QR {% if pro %}<span class="etiqueta pro">Plan Pro</span>{% endif %}</h1>
-<p class="suave">{% if pro %}Plan Pro{% if pro_hasta %} hasta el {{ pro_hasta }}{% endif %}: {{ usados }} de {{ max_qrs }} códigos.{% else %}Plan gratis: {{ usados }} de {{ max_qrs }} código{{ 's' if max_qrs != 1 }}.{% endif %}
-Tus códigos nunca se apagan, aunque dejes de pagar. <a href="/planes">Ver planes</a></p>
+{% set dependientes = qrs|rejectattr('id', 'in', protected_ids)|list|length %}
+<p class="suave">{% if pro %}Plan Pro{% if pro_hasta %} hasta el {{ pro_hasta }}{% endif %}: {{ usados }} de {{ max_qrs }} códigos.{% if pro_hasta %} Tus códigos funcionan mientras tengas Pro y {{ grace_days }} días más.{% endif %}
+{% else %}Plan gratis: {{ usados }} de {{ max_qrs }} código{{ 's' if max_qrs != 1 }}.{% if sin_prueba %} El plan gratis funciona {{ trial_days }} días desde tu primer código.{% elif not vencido and not en_gracia and dias is not none %} Tu prueba gratis dura hasta el {{ hasta }} ({{ dias }} día{{ 's' if dias != 1 }}); después tus códigos quedan en pausa hasta que elijas un plan.{% endif %}{% endif %}
+<a href="/planes">Ver planes</a></p>
+{% if vencido and dependientes %}<p class="aviso error" role="alert">Tus códigos están en pausa desde el {{ hasta }}: quien los escanea ve un aviso. <a href="/planes">Elige un plan</a> y vuelven a funcionar al instante, sin reimprimir.</p>
+{% elif en_gracia and dependientes %}<p class="aviso" role="status">Tu plan Pro venció. Tus códigos siguen activos hasta el {{ hasta }}; <a href="/planes">renueva</a> para que no queden en pausa.</p>{% endif %}
 
 <div class="carta">
 <h2>Nuevo código: ¿qué quieres que abra?</h2>
@@ -21,12 +25,14 @@ Tus códigos nunca se apagan, aunque dejes de pagar. <a href="/planes">Ver plane
     <h3>{{ q.name }}
       {% if q.status != 'ok' %}<span class="etiqueta mal">Bloqueado por seguridad</span>
       {% elif not q.active %}<span class="etiqueta pausa">Pausado</span>
+      {% elif q.id not in on_ids %}<span class="etiqueta mal">En pausa · elige un plan</span>
       {% else %}<span class="etiqueta">Activo</span>{% endif %}
+      {% if q.legacy and not q.paid and q.kind not in STATIC %}<span class="etiqueta pro">Sin vencimiento</span>{% endif %}
     </h3>
     <div class="destino chico"><strong>{{ KINDS[q.kind].label }}</strong> ·
       {% if q.kind == 'url' %}<a href="{{ q.target }}" rel="noopener noreferrer" target="_blank">{{ q.target }}</a>{% else %}{{ resumen(q) }}{% endif %}</div>
     <div class="suave chico">{% if q.kind in STATIC %}Datos dentro del QR · no cuenta escaneos{% else %}{{ base_url }}/r/{{ q.code }} · {{ q.scans }} escaneos{% endif %}</div>
-    {% if q.id not in editable_ids %}<p class="aviso chico bloqueado">Sigue funcionando. Para editarlo, renueva Pro o hazlo permanente.</p>{% endif %}
+    {% if q.id not in editable_ids and q.id in on_ids %}<p class="aviso chico bloqueado">Sigue funcionando. Para editarlo, renueva Pro o hazlo permanente.</p>{% endif %}
     {% if q.status != 'ok' %}<p class="aviso error chico">{{ q.flag_reason }} Cambia el destino para reactivarlo.</p>{% endif %}
     <div class="acciones">
       <a class="boton" href="/qr/{{ q.id }}/imagen.png?descargar=1">PNG</a>
@@ -36,7 +42,7 @@ Tus códigos nunca se apagan, aunque dejes de pagar. <a href="/planes">Ver plane
       {% if q.id in editable_ids %}<a class="boton secundario" href="/qr/{{ q.id }}/editar">Editar</a>{% endif %}
       {% if q.kind not in STATIC %}<a class="boton secundario" href="/qr/{{ q.id }}/estadisticas">Estadísticas</a>{% endif %}
       {% if q.kind not in STATIC %}<form method="post" action="/qr/{{ q.id }}/estado"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="secundario">{{ 'Pausar' if q.active else 'Reactivar' }}</button></form>{% endif %}
-      {% if not q.paid and pagos_activos() %}<form method="post" action="/comprar"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="product" value="qr"><input type="hidden" name="qr_id" value="{{ q.id }}"><button class="secundario destacado">Hacer permanente con logo · {{ pesos(PRECIOS.qr) }}</button></form>{% endif %}
+      {% if not q.paid and pagos_activos() %}<form method="post" action="/comprar"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="product" value="qr"><input type="hidden" name="qr_id" value="{{ q.id }}"><button class="secundario destacado">Hacer permanente (nunca vence) · {{ pesos(PRECIOS.qr) }}</button></form>{% endif %}
       {% if q.paid %}<span class="etiqueta pro">Permanente</span>{% endif %}
       <details><summary>Eliminar</summary>
         <form method="post" action="/qr/{{ q.id }}/eliminar"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="peligro">{{ 'Sí, eliminar de mi panel' if q.kind in STATIC else 'Sí, eliminar: el QR impreso dejará de funcionar' }}</button></form>

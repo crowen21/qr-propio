@@ -60,8 +60,14 @@ def code_of(c):
 
 
 def decode(png):
+    """Lee el QR; el detector de OpenCV a veces falla con un tamaño y no con otro, así que prueba varios."""
     img = cv2.imdecode(np.frombuffer(png, np.uint8), cv2.IMREAD_COLOR)
-    return cv2.QRCodeDetector().detectAndDecode(img)[0]
+    img = cv2.copyMakeBorder(img, 40, 40, 40, 40, cv2.BORDER_CONSTANT, value=(255, 255, 255))
+    for s in (1.0, 0.75, 1.5, 0.5, 2.0):
+        val = cv2.QRCodeDetector().detectAndDecode(cv2.resize(img, None, fx=s, fy=s, interpolation=cv2.INTER_AREA))[0]
+        if val:
+            return val
+    return ""
 
 
 def test_login_requires_verification(c):
@@ -493,7 +499,7 @@ def buy(c, product, qr_id=0):
 def test_buy_permanent_qr(c, fake_flow):
     signup(c); new_qr(c, "https://ejemplo.cl")
     qid = re.search(r"/qr/(\d+)/editar", c.get("/panel").text).group(1)
-    assert "Hacer permanente con logo" in c.get("/panel").text
+    assert "Hacer permanente (nunca vence)" in c.get("/panel").text
     r = buy(c, "qr", qid)
     assert r.status_code == 303 and r.headers["location"].startswith("https://sandbox.flow.cl/")
     tok = r.headers["location"].split("token=")[1]
@@ -718,3 +724,96 @@ def test_facebook_and_tiktok(c):
         assert r.status_code == 400, (kind, bad)
     panel = c.get("/panel").text
     assert "tipo-facebook" in panel and "tipo-tiktok" in panel
+
+
+def _code(qid):
+    with db.connect() as conn:
+        return conn.execute("SELECT code FROM qrs WHERE id=?", (qid,)).fetchone()["code"]
+
+
+def _set(sql, *args):
+    with db.connect() as conn:
+        conn.execute(sql, args)
+
+
+def _paused(c, code):
+    r = c.get(f"/r/{code}", follow_redirects=False)
+    return r.status_code == 200 and "está en pausa" in r.text
+
+
+def test_free_trial_pauses_and_plans_reactivate(c):
+    signup(c)
+    form = c.get("/qr/nuevo?tipo=url").text
+    assert "funciona 30 días" in form                               # se avisa antes de crear
+    r = new_qr(c, "https://ejemplo.cl/carta")
+    qid = int(re.search(r"/qr/(\d+)/editar", r.text).group(1)); code = _code(qid)
+    with db.connect() as conn:
+        u = conn.execute("SELECT trial_until FROM users").fetchone()
+        assert conn.execute("SELECT legacy FROM qrs WHERE id=?", (qid,)).fetchone()[0] == 0
+    assert abs(u["trial_until"] - (time.time() + 30 * 86400)) < 60
+    assert c.get(f"/r/{code}", follow_redirects=False).status_code == 302
+    assert "Tu prueba gratis dura hasta el" in c.get("/panel").text
+    # termina la prueba: en pausa, con aviso al dueño y a quien escanea
+    _set("UPDATE users SET trial_until=?", int(time.time()) - 10)
+    assert _paused(c, code)
+    panel = c.get("/panel").text
+    assert "Tus códigos están en pausa" in panel and "En pausa · elige un plan" in panel
+    # borrar y crear otro no reinicia la prueba
+    c.post(f"/qr/{qid}/eliminar", data={"csrf": csrf(c, "/panel")})
+    assert "quedará en pausa apenas lo crees" in c.get("/qr/nuevo?tipo=url").text
+    r = new_qr(c, "https://ejemplo.cl/otra")
+    qid = int(re.search(r"/qr/(\d+)/editar", r.text).group(1)); code = _code(qid)
+    assert _paused(c, code)
+    # el QR permanente nunca vence
+    _set("UPDATE qrs SET paid=1 WHERE id=?", qid)
+    assert c.get(f"/r/{code}", follow_redirects=False).status_code == 302
+    _set("UPDATE qrs SET paid=0 WHERE id=?", qid)
+    # Pro reactiva al instante; al vencer hay 7 días de gracia y luego pausa
+    set_pro(int(time.time()) + 86400)
+    assert c.get(f"/r/{code}", follow_redirects=False).status_code == 302
+    set_pro(int(time.time()) - 6 * 86400)
+    assert c.get(f"/r/{code}", follow_redirects=False).status_code == 302
+    assert "Tu plan Pro venció" in c.get("/panel").text
+    set_pro(int(time.time()) - 8 * 86400)
+    assert _paused(c, code)
+    set_pro(None)                                                    # Pro sin vencimiento (asignado a mano)
+    assert c.get(f"/r/{code}", follow_redirects=False).status_code == 302
+
+
+def test_existing_accounts_and_codes_keep_never_expiring(c, monkeypatch, tmp_path):
+    # Base de una versión anterior: al migrar, sus códigos y cuentas quedan protegidos.
+    old = tmp_path / "vieja.db"
+    import sqlite3
+    conn = sqlite3.connect(old); conn.executescript(db.SCHEMA)
+    conn.execute("INSERT INTO users (id,name,email,pw_hash,verified,created_at) VALUES (1,'Ana','a@x.cl','h',1,1)")
+    conn.execute("INSERT INTO qrs (user_id,code,name,target,created_at) VALUES (1,'ABC1234','Menú','https://x.cl',1)")
+    conn.commit(); conn.close()
+    monkeypatch.setattr(db, "DB_PATH", old)
+    db.init(); db.init()                                             # migrar dos veces no cambia nada
+    with db.connect() as k:
+        assert k.execute("SELECT legacy FROM qrs").fetchone()[0] == 1
+        g = k.execute("SELECT grandfather_until FROM users").fetchone()[0]
+    assert abs(g - (time.time() + 15 * 86400)) < 60
+    monkeypatch.undo()
+    # en la base de pruebas: un código antiguo no entra en pausa aunque termine la prueba
+    signup(c)
+    qid = int(re.search(r"/qr/(\d+)/editar", new_qr(c, "https://ejemplo.cl").text).group(1))
+    _set("UPDATE qrs SET legacy=1"); _set("UPDATE users SET trial_until=?", int(time.time()) - 10)
+    assert c.get(f"/r/{_code(qid)}", follow_redirects=False).status_code == 302
+    assert "Sin vencimiento" in c.get("/panel").text
+    # una cuenta existente crea códigos sin vencimiento durante el plazo de aviso
+    _set("DELETE FROM qrs"); _set("UPDATE users SET grandfather_until=?", int(time.time()) + 86400)
+    assert "funciona 30 días" not in c.get("/qr/nuevo?tipo=url").text
+    qid = int(re.search(r"/qr/(\d+)/editar", new_qr(c, "https://ejemplo.cl/b").text).group(1))
+    assert c.get(f"/r/{_code(qid)}", follow_redirects=False).status_code == 302
+
+
+def test_trial_reminder_sent_once(c):
+    signup(c)
+    new_qr(c, "https://ejemplo.cl")
+    _set("UPDATE users SET trial_until=?", int(time.time()) + 3 * 86400)
+    mailer.outbox.clear()
+    assert maintenance.remind_trial() == 1 and "termina el" in mailer.outbox[-1][1]
+    assert maintenance.remind_trial() == 0
+    set_pro(None); _set("UPDATE users SET trial_reminded=NULL")
+    assert maintenance.remind_trial() == 0                           # con Pro no hay nada que avisar

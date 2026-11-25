@@ -164,13 +164,14 @@ def is_admin(user) -> bool:
     return bool(user and user["verified"] and user["email"].lower() in config.ADMINS)
 
 
-def render(request: Request, name: str, status: int = 200, **ctx):
+def render(request: Request, name: str, status: int = 200, headers: dict | None = None, **ctx):
     ctx.setdefault("user", current_user(request))
     ctx["es_admin"] = is_admin(ctx["user"])
     ctx.update(csrf=csrf_token(request), site=config.SITE_NAME, base_url=config.BASE_URL,
+               trial_days=config.TRIAL_DAYS, grace_days=config.GRACE_DAYS,
                responsable=config.RESPONSABLE, contacto=config.CONTACTO, legal_fecha=config.LEGAL_FECHA,
                flash=request.session.pop("flash", None))
-    return templates.TemplateResponse(request, name, ctx, status_code=status)
+    return templates.TemplateResponse(request, name, ctx, status_code=status, headers=headers)
 
 
 def redirect(path: str):
@@ -449,6 +450,28 @@ def is_pro(user) -> bool:
     return user["plan"] == "pro" and (not user["plan_until"] or user["plan_until"] > now())
 
 
+def active_until(user):
+    """Hasta cuándo funcionan los códigos que dependen del plan. None = sin límite (Pro sin vencimiento)."""
+    if user["plan"] == "pro" and not user["plan_until"]:
+        return None
+    limits = [user["trial_until"] or 0]
+    if user["plan"] == "pro" and user["plan_until"]:
+        limits.append(user["plan_until"] + config.GRACE_DAYS * 86400)
+    return max(limits)
+
+
+def protected(q) -> bool:
+    """Códigos que nunca entran en pausa: los permanentes, los creados antes del cambio y los WiFi (datos dentro del QR)."""
+    return bool(q["paid"] or q["legacy"] or q["kind"] in kinds.STATIC)
+
+
+def qr_on(user, q) -> bool:
+    if protected(q):
+        return True
+    until = active_until(user)
+    return until is None or until > now()
+
+
 def free_qr_id(c, user):
     """El código gratuito de la cuenta: el más antiguo que no fue pagado."""
     row = c.execute("SELECT id FROM qrs WHERE user_id=? AND paid=0 ORDER BY id LIMIT 1", (user["id"],)).fetchone()
@@ -485,7 +508,15 @@ def panel(request: Request, user, status: int = 200, **ctx):
         qrs = c.execute("SELECT * FROM qrs WHERE user_id=? ORDER BY id DESC", (user["id"],)).fetchall()
         free_id = free_qr_id(c, user)
     pro = is_pro(user)
+    until = active_until(user)
+    t = now()
     return render(request, "panel.html", status=status, user=user, qrs=qrs, sin_clave=user["pw_hash"] == NO_PASSWORD,
+                  on_ids={q["id"] for q in qrs if qr_on(user, q)},
+                  protected_ids={q["id"] for q in qrs if protected(q)},
+                  hasta=fecha(until) if until else "", dias=max(0, (until - t + 86399) // 86400) if until else None,
+                  vencido=bool(until is not None and until <= t and user["trial_until"]),
+                  en_gracia=bool(user["plan"] == "pro" and user["plan_until"] and user["plan_until"] <= t < (until or 0)),
+                  sin_prueba=not user["trial_until"],
                   pro=pro, pro_hasta=fecha(user["plan_until"]) if pro else "",
                   premium_ids={q["id"] for q in qrs if premium(user, q)},
                   editable_ids={q["id"] for q in qrs if premium(user, q) or q["id"] == free_id},
@@ -526,14 +557,20 @@ def admin_page(request: Request, q: str = ""):
             WHERE lower(u.email) LIKE ? ORDER BY p.id DESC LIMIT 300""", (filtro,)).fetchall()
 
     def plan_de(u):
-        if u["plan"] != "pro":
-            return "Gratis", ""
-        if not u["plan_until"]:
+        if u["plan"] == "pro" and not u["plan_until"]:
             return "Pro", "sin vencimiento"
-        dias = (u["plan_until"] - t) // 86400
-        if u["plan_until"] <= t:
-            return "Pro vencido", f"venció el {fecha(u['plan_until'])}"
-        return "Pro", f"{dias} día{'s' if dias != 1 else ''} (hasta el {fecha(u['plan_until'])})"
+        if u["plan"] == "pro" and u["plan_until"] > t:
+            dias = (u["plan_until"] - t) // 86400
+            return "Pro", f"{dias} día{'s' if dias != 1 else ''} (hasta el {fecha(u['plan_until'])})"
+        if u["plan"] == "pro":
+            fin = u["plan_until"] + config.GRACE_DAYS * 86400
+            return "Pro vencido", (f"en gracia hasta el {fecha(fin)}" if fin > t else f"en pausa desde el {fecha(fin)}")
+        if not u["trial_until"]:
+            return "Gratis", "sin códigos aún"
+        if u["trial_until"] > t:
+            dias = (u["trial_until"] - t) // 86400
+            return "Gratis", f"prueba: {dias} día{'s' if dias != 1 else ''} (hasta el {fecha(u['trial_until'])})"
+        return "Gratis", f"prueba terminada el {fecha(u['trial_until'])}"
 
     return render(request, "admin.html", user=user, q=q, resumen=resumen, cuentas=cuentas, pagos=pagos,
                   plan_de=plan_de, fecha=fecha,
@@ -582,8 +619,23 @@ def email_qr(user, q) -> bool:
 def qr_form(request: Request, user, kind: str, values: dict, q=None, status: int = 200, error=None):
     diseno = premium(user, q) if q else is_pro(user)
     values = {"fg": qrdraw.DEFAULT_FG, "bg": qrdraw.DEFAULT_BG, **{k: v for k, v in values.items() if v}}
+    aviso_vence = ""
+    if not q and kind not in kinds.STATIC and not (user["grandfather_until"] and user["grandfather_until"] > now()):
+        until = active_until(user)
+        if until is None:
+            pass
+        elif not user["trial_until"] and not is_pro(user):
+            aviso_vence = (f"Con el plan gratis, este código funciona {config.TRIAL_DAYS} días. Después queda en pausa "
+                           "hasta que elijas un plan o lo hagas permanente; al hacerlo vuelve a funcionar sin reimprimirlo.")
+        elif until <= now():
+            aviso_vence = ("Tu prueba gratis terminó: este código quedará en pausa apenas lo crees. "
+                           "Elige un plan o hazlo permanente para que funcione.")
+        else:
+            aviso_vence = (f"Este código funcionará hasta el {fecha(until)}"
+                           + (f" (fin de tu plan Pro más {config.GRACE_DAYS} días de gracia)" if is_pro(user) else " (fin de tu prueba gratis)")
+                           + ". Después queda en pausa hasta que renueves o lo hagas permanente.")
     return render(request, "formulario.html", status=status, user=user, kind=kind,
-                  spec=kinds.KINDS[kind], values=values, q=q, error=error, diseno=diseno)
+                  spec=kinds.KINDS[kind], values=values, q=q, error=error, diseno=diseno, aviso_vence=aviso_vence)
 
 
 def qr_save(request: Request, qr_id: int | None, form: dict):
@@ -652,10 +704,13 @@ def qr_save(request: Request, qr_id: int | None, form: dict):
                       (name, target, blob, logo, fg, bg, frame, logo_size, now(), qr_id))
         else:
             code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(7))
+            legacy = int(bool(user["grandfather_until"] and user["grandfather_until"] > now()))
+            if not user["trial_until"]:  # la prueba gratis parte con el primer código y no se reinicia al borrarlo
+                c.execute("UPDATE users SET trial_until=? WHERE id=?", (now() + config.TRIAL_DAYS * 86400, user["id"]))
             new_id = c.execute(
-                "INSERT INTO qrs (user_id,code,name,kind,target,data,logo,fg,bg,frame,logo_size,created_at,checked_at) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (user["id"], code, name, kind, target, blob, logo, fg, bg, frame, logo_size, now(), now())).lastrowid
+                "INSERT INTO qrs (user_id,code,name,kind,target,data,logo,fg,bg,frame,logo_size,legacy,created_at,checked_at) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (user["id"], code, name, kind, target, blob, logo, fg, bg, frame, logo_size, legacy, now(), now())).lastrowid
             created = c.execute("SELECT * FROM qrs WHERE id=?", (new_id,)).fetchone()
     if q:
         flash(request, "Cambios guardados.")
@@ -942,19 +997,33 @@ def account_delete(request: Request, password: str = Form(""), confirm_email: st
 
 # ---------- redirección del QR ----------
 
+class Paused(Exception):
+    pass
+
+
 def live_qr(c, code: str):
     q = c.execute("SELECT * FROM qrs WHERE code=?", (code,)).fetchone()
     if not q or not q["active"] or q["kind"] in kinds.STATIC:
         raise HTTPException(404, "Este código QR no existe o fue desactivado por su dueño.")
     if q["expires_at"] and q["expires_at"] < now():
         raise HTTPException(410, "Este código QR ya venció.")
+    owner = c.execute("SELECT * FROM users WHERE id=?", (q["user_id"],)).fetchone()
+    if not qr_on(owner, q):
+        raise Paused()
     return q
+
+
+def paused_page(request: Request):
+    return render(request, "pausa.html", user=None, headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex"})
 
 
 @app.api_route("/r/{code}", methods=["GET", "HEAD"])
 def follow(request: Request, code: str):
     with db.connect() as c:
-        q = live_qr(c, code)
+        try:
+            q = live_qr(c, code)
+        except Paused:
+            return paused_page(request)
         if q["status"] != "ok":
             return render(request, "bloqueado.html", status=403, user=None,
                           google="Google" in (q["flag_reason"] or ""))
@@ -968,9 +1037,12 @@ def follow(request: Request, code: str):
 
 
 @app.get("/r/{code}/contacto.vcf")
-def contact_card(code: str):
+def contact_card(request: Request, code: str):
     with db.connect() as c:
-        q = live_qr(c, code)
+        try:
+            q = live_qr(c, code)
+        except Paused:
+            return paused_page(request)
     if q["kind"] != "vcard":
         raise HTTPException(404, "Este código no es una tarjeta de contacto.")
     return Response(kinds.vcard(qr_data(q)), media_type="text/vcard; charset=utf-8",

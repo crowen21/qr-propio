@@ -82,11 +82,35 @@ def remind_expiring() -> int:
                           "AND reminded_at IS NULL", (t, t + 3 * 86400)).fetchall()
         for u in users:
             fecha = time.strftime("%d-%m-%Y", time.localtime(u["plan_until"]))
+            pausa = time.strftime("%d-%m-%Y", time.localtime(u["plan_until"] + config.GRACE_DAYS * 86400))
             mailer.send(u["email"], f"Tu plan Pro de {config.SITE_NAME} vence el {fecha}",
-                        f"Hola {u['name']}:\n\nTu plan Pro vence el {fecha}. Tus códigos van a seguir funcionando "
-                        f"igual, pero dejarás de poder editarlos y cambiar su diseño.\n\n"
-                        f"Para renovarlo: {config.BASE_URL}/planes", boton=("Renovar Pro", f"{config.BASE_URL}/planes"))
+                        f"Hola {u['name']}:\n\nTu plan Pro vence el {fecha}. Si no lo renuevas, tus códigos seguirán "
+                        f"funcionando {config.GRACE_DAYS} días más y el {pausa} quedarán en pausa: quien los escanee verá "
+                        f"un aviso. Los códigos permanentes no se ven afectados.\n\n"
+                        f"Al renovar vuelven a funcionar al instante, sin reimprimirlos: {config.BASE_URL}/planes",
+                        boton=("Renovar Pro", f"{config.BASE_URL}/planes"))
             c.execute("UPDATE users SET reminded_at=? WHERE id=?", (t, u["id"]))
+    return len(users)
+
+
+def remind_trial() -> int:
+    """Avisa por correo, una vez, a quien tiene la prueba gratis por terminar en los próximos 5 días
+    y tiene códigos que quedarían en pausa (no permanentes ni anteriores al cambio)."""
+    t = int(time.time())
+    with db.connect() as c:
+        users = c.execute("""SELECT * FROM users u WHERE trial_until BETWEEN ? AND ? AND trial_reminded IS NULL
+            AND NOT (plan='pro' AND (plan_until IS NULL OR plan_until + ? > trial_until))
+            AND EXISTS (SELECT 1 FROM qrs q WHERE q.user_id=u.id AND q.paid=0 AND q.legacy=0 AND q.kind != 'wifi')""",
+                          (t, t + 5 * 86400, config.GRACE_DAYS * 86400)).fetchall()
+        for u in users:
+            fecha = time.strftime("%d-%m-%Y", time.localtime(u["trial_until"]))
+            mailer.send(u["email"], f"Tu prueba gratis de {config.SITE_NAME} termina el {fecha}",
+                        f"Hola {u['name']}:\n\nTu prueba gratis termina el {fecha}. Ese día tus códigos quedarán en "
+                        f"pausa: quien los escanee verá un aviso en vez de tu contenido.\n\n"
+                        f"Para que sigan funcionando, elige Pro o haz permanente el código que más uses (pago único, "
+                        f"no vence nunca). El código impreso es el mismo: no tienes que reimprimirlo.\n\n"
+                        f"Ver planes: {config.BASE_URL}/planes", boton=("Ver planes", f"{config.BASE_URL}/planes"))
+            c.execute("UPDATE users SET trial_reminded=? WHERE id=?", (t, u["id"]))
     return len(users)
 
 
@@ -97,6 +121,7 @@ def main():
     total, flagged = recheck()
     log.info("Enlaces revisados: %d, bloqueados: %d", total, flagged)
     remind_expiring()
+    remind_trial()
     with db.connect() as c:
         c.execute("DELETE FROM tokens WHERE expires_at < ?", (int(time.time()),))
         c.execute("DELETE FROM scans WHERE ts < ?", (int(time.time()) - 400 * 86400,))

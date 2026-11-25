@@ -9,6 +9,7 @@
 {% elif q %}
 <p class="suave chico">El QR impreso no cambia: solo cambia lo que abre.</p>
 {% endif %}
+{% if aviso_vence %}<p class="aviso chico" role="note">{{ aviso_vence }}</p>{% endif %}
 <form method="post" action="{{ '/qr/%d/editar' % q.id if q else '/qr/nuevo' }}" enctype="multipart/form-data">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   <input type="hidden" name="kind" value="{{ kind }}">

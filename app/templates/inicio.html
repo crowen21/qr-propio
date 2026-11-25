@@ -3,13 +3,13 @@
 <main class="inicio">
 <section class="ancho portada">
   <div class="portada-texto">
-    <h1>Tus códigos QR nunca se apagan.</h1>
-    <p>Imprime una vez y cambia a dónde lleva tu QR cuando quieras: tu carta, tu WhatsApp, tu Instagram o tu WiFi.</p>
+    <h1>Imprime una vez. Cambia cuando quieras.</h1>
+    <p>Tu carta, tu WhatsApp, tu Instagram o tu WiFi: el código impreso es el mismo y el destino lo eliges tú.</p>
     <div class="portada-acciones">
       <a class="boton grande" href="/registro">Crear mi QR gratis</a>
       {% if 'google' in dict(proveedores()) %}<a class="boton secundario grande con-icono" href="/entrar/google">{% include "iconos/google.svg" %}Entrar con Google</a>{% endif %}
     </div>
-    <p class="suave chico">Gratis para siempre con 1 código. Sin tarjeta. Al continuar aceptas los <a href="/terminos">Términos</a> y la <a href="/privacidad">Política de privacidad</a>.</p>
+    <p class="suave chico">Prueba gratis por {{ trial_days }} días con 1 código, sin tarjeta. Al continuar aceptas los <a href="/terminos">Términos</a> y la <a href="/privacidad">Política de privacidad</a>.</p>
   </div>
   <div class="portada-arte" aria-hidden="true">
     <div class="lienzo">
@@ -22,8 +22,8 @@
   </div>
 </section>
 <section class="ancho beneficios">
-  <div><h2>No vencen</h2><p class="suave">Aunque dejes de pagar o no entres en meses, tu QR impreso sigue funcionando.</p></div>
   <div><h2>Se editan</h2><p class="suave">Cambia el destino desde tu panel. El código impreso es el mismo.</p></div>
+  <div><h2>Para siempre, si quieres</h2><p class="suave">El QR permanente se paga una sola vez y no vence nunca. Sin suscripción.</p></div>
   <div><h2>Revisados</h2><p class="suave">Cada enlace se compara a diario con listas de sitios peligrosos.</p></div>
 </section>
 </main>
